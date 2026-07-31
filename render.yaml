@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ugo-portfolio
+    runtime: node
+    plan: free
+    # Frankfurt matches the Supabase project's eu-central-1 region — keeping
+    # the app and database in the same region avoids adding cross-continental
+    # latency on top of the pooler's own connection timeouts.
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_WHATSAPP_NUMBER
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
