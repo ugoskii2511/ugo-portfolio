@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, X } from "lucide-react";
+import { ImageUp, Loader2, X } from "lucide-react";
+import { useToast } from "@/components/admin/toast-provider";
 
 export type ProjectFormValues = {
   id?: string;
@@ -39,8 +40,41 @@ export function ProjectFormModal({
   const [values, setValues] = useState<ProjectFormValues>(initialValues ?? EMPTY_VALUES);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const isEditing = Boolean(initialValues?.id);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsUploading(true);
+    setErrorMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Upload failed. Please try again.");
+      }
+
+      setValues((v) => ({ ...v, imageUrl: data.url }));
+      toast.success("Image uploaded.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed.";
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   function resetAndClose() {
     setValues(EMPTY_VALUES);
@@ -155,15 +189,30 @@ export function ProjectFormModal({
                 />
               </label>
 
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Image URL (optional)</span>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Cover Image (optional)</span>
+
                 <input
-                  type="url"
-                  placeholder="https://... a screenshot or thumbnail"
-                  value={values.imageUrl}
-                  onChange={(event) => setValues((v) => ({ ...v, imageUrl: event.target.value }))}
-                  className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border-subtle px-3.5 py-2.5 text-sm font-medium text-foreground/70 transition hover:border-primary/40 hover:text-primary disabled:opacity-60"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageUp className="h-4 w-4" />
+                  )}
+                  {isUploading ? "Uploading..." : "Upload from device"}
+                </button>
+
                 {values.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -175,10 +224,23 @@ export function ProjectFormModal({
                     }}
                   />
                 )}
+
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs text-foreground/50">Or paste an image URL directly</span>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={values.imageUrl}
+                    onChange={(event) =>
+                      setValues((v) => ({ ...v, imageUrl: event.target.value }))
+                    }
+                    className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                  />
+                </label>
                 <span className="text-xs text-foreground/50">
                   Leave blank to use a generated placeholder with your tech stack.
                 </span>
-              </label>
+              </div>
 
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Tech Stack (comma-separated)</span>
