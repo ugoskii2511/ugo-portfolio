@@ -43,7 +43,7 @@ export default async function HomePage() {
         availabilityStatus={settings?.availabilityStatus ?? "Open for New Projects"}
         heroIntro={
           settings?.heroIntro ??
-          "I'm Ugochukwu Chukwu Christian, a full-stack developer helping founders and businesses ship websites, dashboards, e-commerce stores, and SaaS platforms that actually convert."
+          "I'm Ugochukwu Chukwu Christian, a full-stack developer helping businesses grow their online presence with fast, modern websites, dashboards, e-commerce stores, and SaaS platforms that actually convert."
         }
       />
       <ServicesPreview />
