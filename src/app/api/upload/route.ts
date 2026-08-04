@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/authGuard";
 import { handleApiError } from "@/lib/apiError";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// Vercel Functions cap request bodies at 4.5MB platform-wide — stay safely
+// under that (rather than Render, which had no such limit) so uploads don't
+// get rejected before this handler even runs.
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const BUCKET = "project-images";
 
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: "File is too large. Max 5MB." }, { status: 400 });
+      return NextResponse.json({ error: "File is too large. Max 4MB." }, { status: 400 });
     }
 
     const supabaseUrl = process.env.SUPABASE_URL;

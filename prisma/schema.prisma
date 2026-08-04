@@ -88,6 +88,15 @@ model SiteSettings {
   updatedAt           DateTime @updatedAt
 }
 
+/// Fixed-window rate limit counter, keyed by "route:ip". DB-backed rather
+/// than in-memory since serverless deployments (Vercel) don't guarantee
+/// shared memory across invocations the way a persistent server does.
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(1)
+  resetAt DateTime
+}
+
 enum AnalyticsEventType {
   PAGE_VIEW
   BOOKING_CLICK

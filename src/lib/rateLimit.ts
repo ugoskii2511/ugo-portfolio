@@ -1,28 +1,37 @@
 import type { NextRequest } from "next/server";
+import { prisma } from "@/lib/db";
 
-type Bucket = { count: number; resetAt: number };
-
-// Simple in-memory fixed-window limiter. Enough to blunt naive bot abuse of
-// public write endpoints on this single-instance deployment — not a
-// substitute for a shared store (Redis) if this ever runs multi-instance.
-const buckets = new Map<string, Bucket>();
-
-export function isRateLimited(
+// DB-backed fixed-window limiter, keyed by "route:ip". Serverless deployments
+// (Vercel) don't guarantee shared memory across invocations, so an in-memory
+// Map can't be trusted to persist counts between requests the way it could
+// on a single persistent server. Not a substitute for a proper store like
+// Redis under real load — just enough to blunt naive bot abuse of public
+// write endpoints.
+export async function isRateLimited(
   request: NextRequest,
   routeKey: string,
   limit: number,
   windowMs: number
-): boolean {
+): Promise<boolean> {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const bucketKey = `${routeKey}:${ip}`;
-  const now = Date.now();
-  const bucket = buckets.get(bucketKey);
+  const key = `${routeKey}:${ip}`;
+  const now = new Date();
 
-  if (!bucket || now > bucket.resetAt) {
-    buckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
+  const bucket = await prisma.rateLimitBucket.findUnique({ where: { key } });
+
+  if (!bucket || bucket.resetAt < now) {
+    await prisma.rateLimitBucket.upsert({
+      where: { key },
+      create: { key, count: 1, resetAt: new Date(now.getTime() + windowMs) },
+      update: { count: 1, resetAt: new Date(now.getTime() + windowMs) },
+    });
     return false;
   }
 
-  bucket.count += 1;
-  return bucket.count > limit;
+  const updated = await prisma.rateLimitBucket.update({
+    where: { key },
+    data: { count: { increment: 1 } },
+  });
+
+  return updated.count > limit;
 }

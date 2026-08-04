@@ -8,7 +8,7 @@ import { isRateLimited } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
-    if (isRateLimited(request, "bookings", 5, 10 * 60 * 1000)) {
+    if (await isRateLimited(request, "bookings", 5, 10 * 60 * 1000)) {
       return NextResponse.json(
         { error: "Too many requests. Please try again in a few minutes." },
         { status: 429 }
