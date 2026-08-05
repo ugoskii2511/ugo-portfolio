@@ -10,6 +10,7 @@ import {
   Server,
   ShieldCheck,
   ShoppingCart,
+  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { serviceCategories, type ServiceCategory, type Service } from "@/lib/services-data";
@@ -26,6 +27,7 @@ const ICONS: Record<ServiceCategory["icon"], LucideIcon> = {
   gauge: Gauge,
   database: Database,
   shield: ShieldCheck,
+  smartphone: Smartphone,
 };
 
 export function ServicesGrid() {

@@ -8,7 +8,7 @@ export type ServiceCategory = {
   id: string;
   title: string;
   description: string;
-  icon: "code" | "server" | "cart" | "layout-dashboard" | "file-text" | "gauge" | "database" | "shield";
+  icon: "code" | "server" | "cart" | "layout-dashboard" | "file-text" | "gauge" | "database" | "shield" | "smartphone";
   services: Service[];
 };
 
@@ -100,6 +100,18 @@ export const serviceCategories: ServiceCategory[] = [
       { id: "mysql-design", title: "MySQL Database Design", description: "Reliable relational data design on MySQL." },
       { id: "firebase-integration", title: "Firebase Integration", description: "Realtime database, auth, and hosting on Firebase." },
       { id: "supabase-integration", title: "Supabase Integration", description: "Postgres, auth, storage, and realtime with Supabase." },
+    ],
+  },
+  {
+    id: "mobile",
+    title: "Mobile App Development",
+    description: "Native iOS and Android apps built for performance and a polished feel.",
+    icon: "smartphone",
+    services: [
+      { id: "ios-app", title: "Native iOS App Development", description: "Swift-based iOS apps built for the App Store." },
+      { id: "android-app", title: "Native Android App Development", description: "Kotlin-based Android apps built for the Play Store." },
+      { id: "mobile-api-integration", title: "Mobile Backend & API Integration", description: "Connecting your app to a secure, scalable backend." },
+      { id: "app-store-deployment", title: "App Store & Play Store Deployment", description: "Store listings, builds, and release management handled end to end." },
     ],
   },
   {
