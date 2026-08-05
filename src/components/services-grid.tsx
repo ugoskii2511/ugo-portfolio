@@ -13,7 +13,7 @@ import {
   Smartphone,
   type LucideIcon,
 } from "lucide-react";
-import { serviceCategories, type ServiceCategory, type Service } from "@/lib/services-data";
+import type { ServiceCategory, Service } from "@/lib/services-data";
 import { useBookingModal } from "@/components/booking-modal";
 import { useSpotlight } from "@/lib/use-spotlight";
 import { Reveal } from "@/components/reveal";
@@ -30,11 +30,11 @@ const ICONS: Record<ServiceCategory["icon"], LucideIcon> = {
   smartphone: Smartphone,
 };
 
-export function ServicesGrid() {
+export function ServicesGrid({ categories }: { categories: ServiceCategory[] }) {
   return (
     <div className="flex flex-col gap-16">
-      {serviceCategories.map((category, categoryIndex) => {
-        const Icon = ICONS[category.icon];
+      {categories.map((category, categoryIndex) => {
+        const Icon = ICONS[category.icon] ?? Code2;
         return (
           <Reveal key={category.id} delay={(categoryIndex % 3) * 60}>
             <div className="group mb-6 flex items-start gap-4">

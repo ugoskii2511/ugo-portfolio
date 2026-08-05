@@ -85,7 +85,71 @@ model SiteSettings {
   contactEmail        String   @default("elitetechsolutions607@gmail.com")
   whatsappNumber      String   @default("2349065606430")
 
+  // Branding
+  siteName            String   @default("Ugochukwu Chukwu Christian")
+  siteTagline         String   @default("Full-Stack Web Developer")
+  siteDescription     String   @default("Full-stack web developer building fast, modern websites, SaaS dashboards, e-commerce platforms, and APIs.")
+  heroHeadline         String  @default("Building fast, modern web experiences that work.")
+  footerBio            String  @default("Ugochukwu Chukwu Christian — full-stack web developer building fast, modern websites, dashboards, and platforms.")
+
+  // Stat overrides — null means "use the live computed value" (real project
+  // count, real review count/average, etc.). Only set these when there's a
+  // real number to report that isn't derivable by counting this site's own
+  // database rows.
+  projectsDeliveredOverride Int?
+  clientReviewsOverride     Int?
+  serviceCategoriesOverride Int?
+  averageRatingOverride     Float?
+
   updatedAt           DateTime @updatedAt
+}
+
+/// FAQ entry shown on the About page.
+model FaqItem {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A step in the "How I Work" process grid (Home + About).
+model ProcessStep {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// A category of services on the Services page (e.g. "Frontend Development").
+model ServiceCategory {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  /// One of a fixed icon-name whitelist enforced in src/lib/validations.ts —
+  /// must stay in sync with the ICONS map in components/services-grid.tsx.
+  icon        String    @default("code")
+  order       Int       @default(0)
+  services    Service[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+/// An individual bookable service within a ServiceCategory.
+model Service {
+  id          String          @id @default(cuid())
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  order       Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([categoryId])
 }
 
 /// Fixed-window rate limit counter, keyed by "route:ip". DB-backed rather

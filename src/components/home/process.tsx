@@ -1,8 +1,8 @@
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { ProcessStepsGrid } from "@/components/process-steps-grid";
+import { ProcessStepsGrid, type ProcessStepEntry } from "@/components/process-steps-grid";
 
-export function Process() {
+export function Process({ steps }: { steps: ProcessStepEntry[] }) {
   return (
     <section className="py-20">
       <Container>
@@ -17,7 +17,7 @@ export function Process() {
         />
 
         <div className="mt-12">
-          <ProcessStepsGrid />
+          <ProcessStepsGrid steps={steps} />
         </div>
       </Container>
     </section>

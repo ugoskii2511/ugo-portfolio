@@ -8,12 +8,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   FileEdit,
   FolderKanban,
+  HelpCircle,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Megaphone,
   Menu,
   MessageSquare,
   Star,
+  Wrench,
   X,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -24,6 +27,9 @@ const NAV_LINKS = [
   { href: "/admin/projects", label: "Projects", icon: FolderKanban },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/admin/services", label: "Services", icon: Wrench },
+  { href: "/admin/process", label: "Process Steps", icon: ListChecks },
+  { href: "/admin/faqs", label: "FAQ", icon: HelpCircle },
   { href: "/admin/content", label: "Site Content", icon: FileEdit },
 ];
 

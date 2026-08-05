@@ -11,7 +11,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Loader2, MessageCircle, X } from "lucide-react";
 import { trackEvent } from "@/lib/track";
-import { serviceCategories } from "@/lib/services-data";
+import type { ServiceCategory } from "@/lib/services-data";
 
 type BookingModalContextValue = {
   openBooking: (serviceName: string) => void;
@@ -29,7 +29,13 @@ export function useBookingModal() {
 
 type Status = "idle" | "submitting" | "success" | "error";
 
-export function BookingModalProvider({ children }: { children: ReactNode }) {
+export function BookingModalProvider({
+  children,
+  serviceCategories,
+}: {
+  children: ReactNode;
+  serviceCategories: ServiceCategory[];
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [projectType, setProjectType] = useState("");
   const [clientName, setClientName] = useState("");

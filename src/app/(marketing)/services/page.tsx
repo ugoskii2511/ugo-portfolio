@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ServicesGrid } from "@/components/services-grid";
 import { ServicesGuarantees } from "@/components/services-guarantees";
+import { getServiceCategories } from "@/lib/get-service-categories";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
     "Frontend, backend, e-commerce, SaaS, CMS, performance, database, and security services — book any of them directly on WhatsApp.",
 };
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  const categories = await getServiceCategories();
+
   return (
     <div className="py-20">
       <Container>
@@ -27,7 +30,7 @@ export default function ServicesPage() {
           <ServicesGuarantees />
         </div>
         <div className="mt-16">
-          <ServicesGrid />
+          <ServicesGrid categories={categories} />
         </div>
       </Container>
     </div>

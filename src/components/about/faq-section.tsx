@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { FAQS } from "@/lib/faq-data";
 import { Reveal } from "@/components/reveal";
 
-export function FaqSection() {
+export type FaqEntry = { id: string; question: string; answer: string };
+
+export function FaqSection({ faqs }: { faqs: FaqEntry[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-3">
-      {FAQS.map((faq, index) => {
+      {faqs.map((faq, index) => {
         const isOpen = openIndex === index;
         return (
-          <Reveal key={faq.question} delay={index * 40} className="glass-panel overflow-hidden rounded-2xl">
+          <Reveal key={faq.id} delay={index * 40} className="glass-panel overflow-hidden rounded-2xl">
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}

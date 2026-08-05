@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { serviceCategories } from "@/lib/services-data";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ValueProps } from "@/components/value-props";
@@ -10,6 +9,7 @@ import { TechGrid } from "@/components/about/tech-grid";
 import { AboutStats } from "@/components/about/about-stats";
 import { ProcessStepsGrid } from "@/components/process-steps-grid";
 import { FaqSection } from "@/components/about/faq-section";
+import { getServiceCategories } from "@/lib/get-service-categories";
 
 export const metadata: Metadata = {
   title: "About",
@@ -21,10 +21,13 @@ const DEFAULT_BIO =
   "I'm a full-stack web developer who helps businesses grow their online presence — building fast, modern websites, SaaS dashboards, e-commerce platforms, and APIs — end to end. From the first line of frontend code to the database schema powering it, I care about the details that make software feel solid: clean architecture, thoughtful UX, and code that doesn't fall apart six months after launch.\n\nWhether you need a marketing site, a full e-commerce store, or a custom SaaS platform with dashboards and auth, I work directly with you — no account managers, no middlemen — from planning through to launch.\n\nMy approach is simple: understand the problem before writing code, keep you informed at every stage, and ship something you can confidently hand off to any other developer later — well-structured, documented, and free of vendor lock-in.";
 
 export default async function AboutPage() {
-  const [settings, projectCount, approvedReviews] = await Promise.all([
+  const [settings, projectCount, approvedReviews, serviceCategories, processSteps, faqs] = await Promise.all([
     prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
     prisma.project.count(),
     prisma.review.findMany({ where: { status: "APPROVED" } }),
+    getServiceCategories(),
+    prisma.processStep.findMany({ orderBy: { order: "asc" } }),
+    prisma.faqItem.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   const bioParagraphs = (settings?.aboutBio ?? DEFAULT_BIO)
@@ -32,10 +35,11 @@ export default async function AboutPage() {
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
 
-  const averageRating =
+  const computedAverageRating =
     approvedReviews.length > 0
       ? approvedReviews.reduce((sum, review) => sum + review.rating, 0) / approvedReviews.length
       : null;
+  const averageRating = settings?.averageRatingOverride ?? computedAverageRating;
 
   return (
     <div className="py-20">
@@ -51,9 +55,9 @@ export default async function AboutPage() {
       <Container className="mt-16">
         <AboutStats
           stats={{
-            projectsDelivered: projectCount,
-            clientReviews: approvedReviews.length,
-            serviceCategories: serviceCategories.length,
+            projectsDelivered: settings?.projectsDeliveredOverride ?? projectCount,
+            clientReviews: settings?.clientReviewsOverride ?? approvedReviews.length,
+            serviceCategories: settings?.serviceCategoriesOverride ?? serviceCategories.length,
             averageRating,
           }}
         />
@@ -76,7 +80,7 @@ export default async function AboutPage() {
       <Container className="mt-20">
         <SectionHeading title="How I work" align="left" />
         <div className="mt-8">
-          <ProcessStepsGrid />
+          <ProcessStepsGrid steps={processSteps} />
         </div>
       </Container>
 
@@ -87,7 +91,7 @@ export default async function AboutPage() {
           description="Everything most clients ask before we start working together."
         />
         <div className="mt-10">
-          <FaqSection />
+          <FaqSection faqs={faqs} />
         </div>
       </Container>
 

@@ -9,6 +9,7 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PageViewTracker } from "@/components/page-view-tracker";
 import { PageTransition } from "@/components/page-transition";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
+import { getServiceCategories } from "@/lib/get-service-categories";
 
 // Announcements, projects, and reviews are managed live from the admin
 // dashboard, so every page needs to be rendered per-request rather than
@@ -32,36 +33,46 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${SITE_NAME} | ${SITE_TAGLINE}`,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  openGraph: {
-    type: "website",
-    url: SITE_URL,
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+  const siteName = settings?.siteName ?? SITE_NAME;
+  const siteTagline = settings?.siteTagline ?? SITE_TAGLINE;
+  const siteDescription = settings?.siteDescription ?? SITE_DESCRIPTION;
+  const title = `${siteName} | ${siteTagline}`;
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: title,
+      template: `%s | ${siteName}`,
+    },
+    description: siteDescription,
+    openGraph: {
+      type: "website",
+      url: SITE_URL,
+      siteName,
+      title,
+      description: siteDescription,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: siteDescription,
+    },
+  };
+}
 
 const DEFAULT_CONTACT_EMAIL = "elitetechsolutions607@gmail.com";
 const DEFAULT_WHATSAPP_NUMBER = "2349065606430";
+const DEFAULT_FOOTER_BIO =
+  "Ugochukwu Chukwu Christian — full-stack web developer building fast, modern websites, dashboards, and platforms.";
 
-function buildPersonJsonLd(email: string) {
+function buildPersonJsonLd(email: string, name: string, tagline: string) {
   return {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: SITE_NAME,
-    jobTitle: SITE_TAGLINE,
+    name,
+    jobTitle: tagline,
     url: SITE_URL,
     email,
   };
@@ -85,12 +96,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [announcement, settings] = await Promise.all([
+  const [announcement, settings, serviceCategories] = await Promise.all([
     getLatestAnnouncement(),
     prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
+    getServiceCategories(),
   ]);
   const contactEmail = settings?.contactEmail ?? DEFAULT_CONTACT_EMAIL;
   const whatsappNumber = settings?.whatsappNumber ?? DEFAULT_WHATSAPP_NUMBER;
+  const footerBio = settings?.footerBio ?? DEFAULT_FOOTER_BIO;
+  const siteName = settings?.siteName ?? SITE_NAME;
+  const siteTagline = settings?.siteTagline ?? SITE_TAGLINE;
 
   return (
     <html
@@ -101,16 +116,23 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(buildPersonJsonLd(contactEmail)) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(buildPersonJsonLd(contactEmail, siteName, siteTagline)),
+          }}
         />
-        <Providers>
+        <Providers serviceCategories={serviceCategories}>
           <PageViewTracker />
           <AnnouncementBanner announcement={announcement} />
           <Navbar />
           <main className="flex-1">
             <PageTransition>{children}</PageTransition>
           </main>
-          <Footer contactEmail={contactEmail} whatsappNumber={whatsappNumber} />
+          <Footer
+            contactEmail={contactEmail}
+            whatsappNumber={whatsappNumber}
+            footerBio={footerBio}
+            serviceCategories={serviceCategories}
+          />
         </Providers>
       </body>
     </html>

@@ -3,7 +3,7 @@ import { Mail, MessageCircle } from "lucide-react";
 import { FaSnapchat, FaTiktok } from "react-icons/fa6";
 import { Container } from "@/components/ui/container";
 import { buildBookingWhatsAppUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
-import { serviceCategories } from "@/lib/services-data";
+import type { ServiceCategory } from "@/lib/services-data";
 
 const EXPLORE_LINKS = [
   { href: "/about", label: "About" },
@@ -16,9 +16,13 @@ const EXPLORE_LINKS = [
 export function Footer({
   contactEmail,
   whatsappNumber,
+  footerBio,
+  serviceCategories,
 }: {
   contactEmail: string;
   whatsappNumber: string;
+  footerBio: string;
+  serviceCategories: ServiceCategory[];
 }) {
   const whatsappUrl = buildBookingWhatsAppUrl(
     {
@@ -38,10 +42,7 @@ export function Footer({
           <p className="font-serif text-lg font-bold">
             Ugochukwu<span className="italic text-primary">.dev</span>
           </p>
-          <p className="mt-3 max-w-xs text-sm text-foreground/70">
-            Ugochukwu Chukwu Christian — full-stack web developer building fast, modern
-            websites, dashboards, and platforms.
-          </p>
+          <p className="mt-3 max-w-xs text-sm text-foreground/70">{footerBio}</p>
           <a
             href={whatsappUrl}
             target="_blank"

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { serviceCategories } from "@/lib/services-data";
 import { Hero } from "@/components/home/hero";
 import { ServicesPreview } from "@/components/home/services-preview";
 import { Process } from "@/components/home/process";
@@ -10,42 +9,53 @@ import { ReviewCard } from "@/components/review-card";
 import { ValueProps } from "@/components/value-props";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getServiceCategories } from "@/lib/get-service-categories";
+
+const DEFAULT_HERO_HEADLINE = "Building fast, modern web experiences that work.";
 
 export default async function HomePage() {
-  const [projectCount, featuredProjects, settings, approvedReviews] = await Promise.all([
-    prisma.project.count(),
-    prisma.project.findMany({
-      where: { featured: true },
-      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
-      take: 3,
-    }),
-    prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
-    prisma.review.findMany({
-      where: { status: "APPROVED" },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const [projectCount, featuredProjects, settings, approvedReviews, serviceCategories, processSteps] =
+    await Promise.all([
+      prisma.project.count(),
+      prisma.project.findMany({
+        where: { featured: true },
+        orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+        take: 3,
+      }),
+      prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
+      prisma.review.findMany({
+        where: { status: "APPROVED" },
+        orderBy: { createdAt: "desc" },
+      }),
+      getServiceCategories(),
+      prisma.processStep.findMany({ orderBy: { order: "asc" } }),
+    ]);
 
   const showReviews = (settings?.reviewsSectionShown ?? true) && approvedReviews.length > 0;
-  const averageRating =
+  const computedAverageRating =
     approvedReviews.length > 0
       ? approvedReviews.reduce((sum, review) => sum + review.rating, 0) / approvedReviews.length
       : null;
 
+  const stats = {
+    projectsDelivered: settings?.projectsDeliveredOverride ?? projectCount,
+    clientReviews: settings?.clientReviewsOverride ?? approvedReviews.length,
+    serviceCategories: settings?.serviceCategoriesOverride ?? serviceCategories.length,
+  };
+  const averageRating = settings?.averageRatingOverride ?? computedAverageRating;
+
   return (
     <>
       <Hero
-        stats={{
-          projectsDelivered: projectCount,
-          clientReviews: approvedReviews.length,
-          serviceCategories: serviceCategories.length,
-        }}
+        stats={stats}
         averageRating={averageRating}
         availabilityStatus={settings?.availabilityStatus ?? "Open for New Projects"}
+        heroHeadline={settings?.heroHeadline ?? DEFAULT_HERO_HEADLINE}
         heroIntro={
           settings?.heroIntro ??
           "I'm Ugochukwu Chukwu Christian, a full-stack developer helping businesses grow their online presence with fast, modern websites, dashboards, e-commerce stores, and SaaS platforms that actually convert."
         }
+        serviceCategories={serviceCategories}
       />
       <section className="py-20">
         <Container>
@@ -65,7 +75,7 @@ export default async function HomePage() {
       </section>
 
       <ServicesPreview />
-      <Process />
+      <Process steps={processSteps} />
 
       {featuredProjects.length > 0 && (
         <section className="py-20">

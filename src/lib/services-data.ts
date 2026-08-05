@@ -1,3 +1,21 @@
+// This file is now only the seed source for the ServiceCategory/Service
+// tables (see prisma/seed.ts) — the public site and admin dashboard read
+// services from the database via /api/services, not from this array
+// directly, so they stay editable without a redeploy.
+
+export const SERVICE_ICON_KEYS = [
+  "code",
+  "server",
+  "cart",
+  "layout-dashboard",
+  "file-text",
+  "gauge",
+  "database",
+  "shield",
+  "smartphone",
+] as const;
+export type ServiceIcon = (typeof SERVICE_ICON_KEYS)[number];
+
 export type Service = {
   id: string;
   title: string;
@@ -8,7 +26,7 @@ export type ServiceCategory = {
   id: string;
   title: string;
   description: string;
-  icon: "code" | "server" | "cart" | "layout-dashboard" | "file-text" | "gauge" | "database" | "shield" | "smartphone";
+  icon: ServiceIcon;
   services: Service[];
 };
 

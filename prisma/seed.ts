@@ -2,6 +2,9 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { FAQS } from "../src/lib/faq-data";
+import { PROCESS_STEPS } from "../src/lib/process-data";
+import { serviceCategories } from "../src/lib/services-data";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -99,6 +102,61 @@ async function main() {
     await prisma.review.upsert({ where: { id }, update: data, create: { id, ...data } });
   }
   console.log(`Seeded ${reviews.length} sample reviews`);
+
+  for (const [index, faq] of FAQS.entries()) {
+    const id = `seed-faq-${index + 1}`;
+    const data = { question: faq.question, answer: faq.answer, order: index };
+    await prisma.faqItem.upsert({ where: { id }, update: data, create: { id, ...data } });
+  }
+  console.log(`Seeded ${FAQS.length} FAQ items`);
+
+  for (const [index, step] of PROCESS_STEPS.entries()) {
+    const id = `seed-process-step-${index + 1}`;
+    const data = { title: step.title, description: step.description, order: index };
+    await prisma.processStep.upsert({ where: { id }, update: data, create: { id, ...data } });
+  }
+  console.log(`Seeded ${PROCESS_STEPS.length} process steps`);
+
+  let seededServiceCount = 0;
+  for (const [categoryIndex, category] of serviceCategories.entries()) {
+    await prisma.serviceCategory.upsert({
+      where: { id: category.id },
+      update: {
+        title: category.title,
+        description: category.description,
+        icon: category.icon,
+        order: categoryIndex,
+      },
+      create: {
+        id: category.id,
+        title: category.title,
+        description: category.description,
+        icon: category.icon,
+        order: categoryIndex,
+      },
+    });
+
+    for (const [serviceIndex, service] of category.services.entries()) {
+      await prisma.service.upsert({
+        where: { id: service.id },
+        update: {
+          categoryId: category.id,
+          title: service.title,
+          description: service.description,
+          order: serviceIndex,
+        },
+        create: {
+          id: service.id,
+          categoryId: category.id,
+          title: service.title,
+          description: service.description,
+          order: serviceIndex,
+        },
+      });
+      seededServiceCount += 1;
+    }
+  }
+  console.log(`Seeded ${serviceCategories.length} service categories, ${seededServiceCount} services`);
 }
 
 main()

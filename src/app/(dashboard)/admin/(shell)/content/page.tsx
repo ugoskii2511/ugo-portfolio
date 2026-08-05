@@ -23,10 +23,21 @@ export default async function AdminContentPage() {
       <SiteContentManager
         initialValues={{
           availabilityStatus: settings.availabilityStatus,
+          heroHeadline: settings.heroHeadline,
           heroIntro: settings.heroIntro,
           aboutBio: settings.aboutBio,
           contactEmail: settings.contactEmail,
           whatsappNumber: settings.whatsappNumber,
+          siteName: settings.siteName,
+          siteTagline: settings.siteTagline,
+          siteDescription: settings.siteDescription,
+          footerBio: settings.footerBio,
+        }}
+        initialStatOverrides={{
+          projectsDeliveredOverride: settings.projectsDeliveredOverride?.toString() ?? "",
+          clientReviewsOverride: settings.clientReviewsOverride?.toString() ?? "",
+          serviceCategoriesOverride: settings.serviceCategoriesOverride?.toString() ?? "",
+          averageRatingOverride: settings.averageRatingOverride?.toString() ?? "",
         }}
       />
     </div>

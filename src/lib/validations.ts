@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SERVICE_ICON_KEYS } from "@/lib/services-data";
 
 // Honeypot: a field real visitors never see or fill in, but naive form
 // bots often auto-fill. A non-empty value marks the submission as spam.
@@ -55,8 +56,47 @@ export const siteSettingsSchema = z
       .string()
       .trim()
       .regex(/^\d{6,15}$/, "Digits only, country code included, no + or spaces"),
+    siteName: z.string().trim().min(1).max(100),
+    siteTagline: z.string().trim().min(1).max(100),
+    siteDescription: z.string().trim().min(1).max(300),
+    heroHeadline: z.string().trim().min(1).max(150),
+    footerBio: z.string().trim().min(1).max(300),
+    projectsDeliveredOverride: z.coerce.number().int().min(0).nullable(),
+    clientReviewsOverride: z.coerce.number().int().min(0).nullable(),
+    serviceCategoriesOverride: z.coerce.number().int().min(0).nullable(),
+    averageRatingOverride: z.coerce.number().min(0).max(5).nullable(),
   })
   .partial();
+
+export const faqItemSchema = z.object({
+  question: z.string().trim().min(1).max(200),
+  answer: z.string().trim().min(1).max(1000),
+  order: z.coerce.number().int().default(0),
+});
+export type FaqItemInput = z.infer<typeof faqItemSchema>;
+
+export const processStepSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(300),
+  order: z.coerce.number().int().default(0),
+});
+export type ProcessStepInput = z.infer<typeof processStepSchema>;
+
+export const serviceCategorySchema = z.object({
+  title: z.string().trim().min(1).max(100),
+  description: z.string().trim().min(1).max(300),
+  icon: z.enum(SERVICE_ICON_KEYS),
+  order: z.coerce.number().int().default(0),
+});
+export type ServiceCategoryInput = z.infer<typeof serviceCategorySchema>;
+
+export const serviceItemSchema = z.object({
+  categoryId: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(150),
+  description: z.string().trim().min(1).max(300),
+  order: z.coerce.number().int().default(0),
+});
+export type ServiceItemInput = z.infer<typeof serviceItemSchema>;
 
 export const adminLoginSchema = z.object({
   email: z.string().trim().email(),

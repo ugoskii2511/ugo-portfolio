@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, MessageCircle, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { useBookingModal } from "@/components/booking-modal";
-import { serviceCategories } from "@/lib/services-data";
+import type { ServiceCategory } from "@/lib/services-data";
 
 export type HeroStats = {
   projectsDelivered: number;
@@ -16,12 +16,16 @@ export function Hero({
   stats,
   averageRating,
   availabilityStatus,
+  heroHeadline,
   heroIntro,
+  serviceCategories,
 }: {
   stats: HeroStats;
   averageRating: number | null;
   availabilityStatus: string;
+  heroHeadline: string;
   heroIntro: string;
+  serviceCategories: ServiceCategory[];
 }) {
   const { openBooking } = useBookingModal();
   const tickerItems = [...serviceCategories, ...serviceCategories];
@@ -49,8 +53,7 @@ export function Hero({
             className="reveal-up mt-6 font-serif text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl"
             style={{ animationDelay: "150ms" }}
           >
-            Building fast, modern{" "}
-            <span className="italic text-primary">web experiences</span> that work.
+            {heroHeadline}
           </h1>
 
           <p
