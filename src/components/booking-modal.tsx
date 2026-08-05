@@ -11,6 +11,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Loader2, MessageCircle, X } from "lucide-react";
 import { trackEvent } from "@/lib/track";
+import { serviceCategories } from "@/lib/services-data";
 
 type BookingModalContextValue = {
   openBooking: (serviceName: string) => void;
@@ -195,12 +196,23 @@ export function BookingModalProvider({ children }: { children: ReactNode }) {
 
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">Type of Website / Project</span>
-                    <input
+                    <select
                       required
                       value={projectType}
                       onChange={(event) => setProjectType(event.target.value)}
                       className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-                    />
+                    >
+                      <option value="General Inquiry">General Inquiry / Not sure yet</option>
+                      {serviceCategories.map((category) => (
+                        <optgroup key={category.id} label={category.title}>
+                          {category.services.map((service) => (
+                            <option key={service.id} value={service.title}>
+                              {service.title}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="flex flex-col gap-1.5 text-sm">

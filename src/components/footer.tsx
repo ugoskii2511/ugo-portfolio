@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Mail, MessageCircle } from "lucide-react";
+import { FaSnapchat, FaTiktok } from "react-icons/fa6";
 import { Container } from "@/components/ui/container";
 import { buildBookingWhatsAppUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
 import { serviceCategories } from "@/lib/services-data";
@@ -95,6 +96,24 @@ export function Footer({
           >
             <Mail className="h-4 w-4 shrink-0" />
             <span className="break-all">{contactEmail}</span>
+          </a>
+          <a
+            href="https://www.tiktok.com/@ugoskii_51"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-foreground/70 hover:text-primary"
+          >
+            <FaTiktok className="h-4 w-4 shrink-0" />
+            @ugoskii_51
+          </a>
+          <a
+            href="https://www.snapchat.com/add/ugoskii_51"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-foreground/70 hover:text-primary"
+          >
+            <FaSnapchat className="h-4 w-4 shrink-0" />
+            @ugoskii_51
           </a>
         </div>
       </Container>

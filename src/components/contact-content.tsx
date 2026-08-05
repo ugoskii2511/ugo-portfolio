@@ -1,6 +1,7 @@
 "use client";
 
 import { Mail, MessageCircle, PenLine } from "lucide-react";
+import { FaSnapchat, FaTiktok } from "react-icons/fa6";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ServicesGuarantees } from "@/components/services-guarantees";
@@ -81,6 +82,27 @@ export function ContactContent({
               <p className="mt-1 text-sm text-foreground/70">Share your project details</p>
             </div>
           </button>
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <a
+            href="https://www.tiktok.com/@ugoskii_51"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-foreground/70 transition hover:-translate-y-0.5 hover:text-primary"
+          >
+            <FaTiktok className="h-4 w-4" />
+            TikTok @ugoskii_51
+          </a>
+          <a
+            href="https://www.snapchat.com/add/ugoskii_51"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-foreground/70 transition hover:-translate-y-0.5 hover:text-primary"
+          >
+            <FaSnapchat className="h-4 w-4" />
+            Snapchat @ugoskii_51
+          </a>
         </div>
 
         <div className="mt-12 border-t border-border-subtle pt-8">
