@@ -3,6 +3,7 @@
 import { Mail, MessageCircle, PenLine } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { ServicesGuarantees } from "@/components/services-guarantees";
 import { useBookingModal } from "@/components/booking-modal";
 import { buildBookingWhatsAppUrl } from "@/lib/whatsapp";
 
@@ -80,6 +81,10 @@ export function ContactContent({
               <p className="mt-1 text-sm text-foreground/70">Share your project details</p>
             </div>
           </button>
+        </div>
+
+        <div className="mt-12 border-t border-border-subtle pt-8">
+          <ServicesGuarantees />
         </div>
       </Container>
     </div>

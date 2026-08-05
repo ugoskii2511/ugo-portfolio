@@ -7,6 +7,7 @@ import { Process } from "@/components/home/process";
 import { CtaBanner } from "@/components/home/cta-banner";
 import { ProjectCard } from "@/components/project-card";
 import { ReviewCard } from "@/components/review-card";
+import { ValueProps } from "@/components/value-props";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 
@@ -46,6 +47,23 @@ export default async function HomePage() {
           "I'm Ugochukwu Chukwu Christian, a full-stack developer helping businesses grow their online presence with fast, modern websites, dashboards, e-commerce stores, and SaaS platforms that actually convert."
         }
       />
+      <section className="py-20">
+        <Container>
+          <SectionHeading
+            eyebrow="Why Work With Me"
+            title={
+              <>
+                Built for <span className="italic text-primary">real business results</span>
+              </>
+            }
+            description="Every project — a five-page site or a full SaaS platform — gets the same standard."
+          />
+          <div className="mt-10">
+            <ValueProps />
+          </div>
+        </Container>
+      </section>
+
       <ServicesPreview />
       <Process />
 

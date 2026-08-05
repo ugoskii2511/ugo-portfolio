@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { serviceCategories } from "@/lib/services-data";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { ValueProps } from "@/components/about/value-props";
+import { ValueProps } from "@/components/value-props";
 import { TechGrid } from "@/components/about/tech-grid";
 import { AboutStats } from "@/components/about/about-stats";
 import { ProcessStepsGrid } from "@/components/process-steps-grid";
@@ -59,8 +59,11 @@ export default async function AboutPage() {
         />
       </Container>
 
-      <Container className="mt-16">
-        <ValueProps />
+      <Container className="mt-20">
+        <SectionHeading title="Why work with me" align="left" />
+        <div className="mt-8">
+          <ValueProps />
+        </div>
       </Container>
 
       <Container className="mt-20 max-w-4xl">
