@@ -8,6 +8,7 @@ type Status = "idle" | "submitting" | "success" | "error";
 
 export function ReviewForm({ onSuccess }: { onSuccess?: () => void }) {
   const [clientName, setClientName] = useState("");
+  const [position, setPosition] = useState("");
   const [rating, setRating] = useState(5);
   const [message, setMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
@@ -23,7 +24,7 @@ export function ReviewForm({ onSuccess }: { onSuccess?: () => void }) {
       const response = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, rating, message, honeypot }),
+        body: JSON.stringify({ clientName, position, rating, message, honeypot }),
       });
 
       const data = await response.json();
@@ -73,6 +74,17 @@ export function ReviewForm({ onSuccess }: { onSuccess?: () => void }) {
           value={clientName}
           onChange={(event) => setClientName(event.target.value)}
           placeholder="e.g. Jane Doe"
+          className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-medium">Your Position</span>
+        <input
+          required
+          value={position}
+          onChange={(event) => setPosition(event.target.value)}
+          placeholder="e.g. CEO, Marketing Manager"
           className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
         />
       </label>

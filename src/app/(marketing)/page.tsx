@@ -136,6 +136,7 @@ export default async function HomePage() {
                   review={{
                     id: review.id,
                     clientName: review.clientName,
+                    position: review.position,
                     rating: review.rating,
                     message: review.message,
                   }}

@@ -22,6 +22,7 @@ export default async function AdminReviewsPage() {
       reviews={reviews.map((review) => ({
         id: review.id,
         clientName: review.clientName,
+        position: review.position,
         rating: review.rating,
         message: review.message,
         status: review.status,

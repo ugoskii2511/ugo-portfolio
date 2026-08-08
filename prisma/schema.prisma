@@ -41,13 +41,17 @@ enum ReviewStatus {
 
 /// Client review submitted publicly, moderated by the admin.
 model Review {
-  id        String       @id @default(cuid())
+  id         String       @id @default(cuid())
   clientName String
-  rating    Int // 1-5
-  message   String
-  status    ReviewStatus @default(PENDING)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  /// Job title / role (e.g. "CEO", "Marketing Manager"), required for new
+  /// submissions via the public form. Nullable at the DB level only so
+  /// reviews submitted before this field existed remain valid.
+  position   String?
+  rating     Int // 1-5
+  message    String
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 }
 
 /// Sitewide announcement banner.

@@ -16,6 +16,7 @@ export type BookingInput = z.infer<typeof bookingSchema>;
 
 export const reviewSubmitSchema = z.object({
   clientName: z.string().trim().min(2, "Name is too short").max(100),
+  position: z.string().trim().min(1, "Position is required").max(100),
   rating: z.coerce.number().int().min(1).max(5),
   message: z.string().trim().min(5, "Please write a short review").max(1000),
   honeypot: honeypotField,

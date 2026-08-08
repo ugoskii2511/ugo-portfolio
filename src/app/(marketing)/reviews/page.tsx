@@ -55,6 +55,7 @@ export default async function ReviewsPage() {
                   review={{
                     id: review.id,
                     clientName: review.clientName,
+                    position: review.position,
                     rating: review.rating,
                     message: review.message,
                   }}

@@ -13,6 +13,7 @@ import { useConfirm } from "@/components/admin/confirm-dialog";
 export type AdminReview = {
   id: string;
   clientName: string;
+  position: string | null;
   rating: number;
   message: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -256,7 +257,12 @@ function ReviewRow({
       <div className="pointer-events-none absolute inset-0" style={spotlightStyle} />
       <div className="flex-1">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-semibold">{review.clientName}</h3>
+          <h3 className="font-semibold">
+            {review.clientName}
+            {review.position && (
+              <span className="ml-1.5 font-normal text-foreground/60">— {review.position}</span>
+            )}
+          </h3>
           <StarRating value={review.rating} />
           <span
             className={clsx(
