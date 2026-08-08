@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Check, Copy, Trash2 } from "lucide-react";
 import { clsx } from "clsx";
 import { StarRating } from "@/components/star-rating";
 import { Reveal } from "@/components/reveal";
@@ -48,9 +48,11 @@ function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (
 export function ReviewsManager({
   reviews,
   reviewsSectionShown,
+  reviewLink,
 }: {
   reviews: AdminReview[];
   reviewsSectionShown: boolean;
+  reviewLink: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -59,6 +61,18 @@ export function ReviewsManager({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("ALL");
+  const [isCopied, setIsCopied] = useState(false);
+
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(reviewLink);
+      setIsCopied(true);
+      toast.success("Review link copied.");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy the link — copy it manually instead.");
+    }
+  }
 
   async function handleSectionToggle(value: boolean) {
     setIsTogglingSection(true);
@@ -129,6 +143,28 @@ export function ReviewsManager({
         <p className="mt-1 text-sm text-foreground/60">
           Approve reviews to publish them, or hide the whole section.
         </p>
+      </div>
+
+      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-semibold">Share this link with clients</h3>
+          <p className="mt-1 text-sm text-foreground/60">
+            Anyone with this link can leave a review — it goes to Pending until you approve it.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <code className="max-w-[220px] truncate rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs sm:max-w-[280px]">
+            {reviewLink}
+          </code>
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-primary-dark px-3.5 py-2 text-xs font-medium text-white shadow-md shadow-primary/25 transition hover:opacity-90"
+          >
+            {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {isCopied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
 
       <div className="glass-panel flex items-center justify-between gap-4 rounded-2xl p-5">

@@ -106,6 +106,7 @@ export default async function RootLayout({
   const footerBio = settings?.footerBio ?? DEFAULT_FOOTER_BIO;
   const siteName = settings?.siteName ?? SITE_NAME;
   const siteTagline = settings?.siteTagline ?? SITE_TAGLINE;
+  const reviewsVisible = settings?.reviewsSectionShown ?? true;
 
   return (
     <html
@@ -123,7 +124,7 @@ export default async function RootLayout({
         <Providers serviceCategories={serviceCategories}>
           <PageViewTracker />
           <AnnouncementBanner announcement={announcement} />
-          <Navbar />
+          <Navbar reviewsVisible={reviewsVisible} />
           <main className="flex-1">
             <PageTransition>{children}</PageTransition>
           </main>
@@ -132,6 +133,7 @@ export default async function RootLayout({
             whatsappNumber={whatsappNumber}
             footerBio={footerBio}
             serviceCategories={serviceCategories}
+            reviewsVisible={reviewsVisible}
           />
         </Providers>
       </body>

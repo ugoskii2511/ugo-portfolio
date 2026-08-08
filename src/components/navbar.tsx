@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useBookingModal } from "@/components/booking-modal";
 import { Container } from "@/components/ui/container";
 
-const NAV_LINKS = [
+const BASE_NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/services", label: "Services" },
@@ -20,10 +20,13 @@ const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Navbar() {
+export function Navbar({ reviewsVisible }: { reviewsVisible: boolean }) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { openBooking } = useBookingModal();
+  const NAV_LINKS = reviewsVisible
+    ? BASE_NAV_LINKS
+    : BASE_NAV_LINKS.filter((link) => link.href !== "/reviews");
 
   return (
     <header className="sticky top-0 z-40 border-b border-border-subtle bg-background/80 backdrop-blur-lg">

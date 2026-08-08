@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { buildBookingWhatsAppUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
 import type { ServiceCategory } from "@/lib/services-data";
 
-const EXPLORE_LINKS = [
+const BASE_EXPLORE_LINKS = [
   { href: "/about", label: "About" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/reviews", label: "Reviews" },
@@ -18,12 +18,17 @@ export function Footer({
   whatsappNumber,
   footerBio,
   serviceCategories,
+  reviewsVisible,
 }: {
   contactEmail: string;
   whatsappNumber: string;
   footerBio: string;
   serviceCategories: ServiceCategory[];
+  reviewsVisible: boolean;
 }) {
+  const EXPLORE_LINKS = reviewsVisible
+    ? BASE_EXPLORE_LINKS
+    : BASE_EXPLORE_LINKS.filter((link) => link.href !== "/reviews");
   const whatsappUrl = buildBookingWhatsAppUrl(
     {
       name: "there",
