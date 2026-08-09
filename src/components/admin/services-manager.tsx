@@ -269,6 +269,7 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
       )}
 
       <ServiceCategoryFormModal
+        key={editingCategory?.id ?? "new"}
         isOpen={isCategoryFormOpen}
         initialValues={editingCategory}
         onClose={() => setIsCategoryFormOpen(false)}
@@ -280,6 +281,7 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
 
       {itemFormCategoryId && (
         <ServiceItemFormModal
+          key={editingItem?.id ?? `new-${itemFormCategoryId}`}
           isOpen={isItemFormOpen}
           categoryId={itemFormCategoryId}
           initialValues={editingItem}

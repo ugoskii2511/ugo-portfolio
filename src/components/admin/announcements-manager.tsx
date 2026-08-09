@@ -115,6 +115,7 @@ export function AnnouncementsManager({ announcements }: { announcements: AdminAn
       )}
 
       <AnnouncementFormModal
+        key={editingValues?.id ?? "new"}
         isOpen={isFormOpen}
         initialValues={editingValues}
         onClose={() => setIsFormOpen(false)}

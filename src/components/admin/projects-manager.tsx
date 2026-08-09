@@ -147,6 +147,7 @@ export function ProjectsManager({ projects }: { projects: AdminProject[] }) {
       )}
 
       <ProjectFormModal
+        key={editingValues?.id ?? "new"}
         isOpen={isFormOpen}
         initialValues={editingValues}
         onClose={() => setIsFormOpen(false)}

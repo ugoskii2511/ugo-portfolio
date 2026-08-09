@@ -100,6 +100,7 @@ export function FaqsManager({ faqs }: { faqs: AdminFaq[] }) {
       )}
 
       <FaqFormModal
+        key={editingValues?.id ?? "new"}
         isOpen={isFormOpen}
         initialValues={editingValues}
         onClose={() => setIsFormOpen(false)}

@@ -103,6 +103,7 @@ export function ProcessStepsManager({ steps }: { steps: AdminProcessStep[] }) {
       )}
 
       <ProcessStepFormModal
+        key={editingValues?.id ?? "new"}
         isOpen={isFormOpen}
         initialValues={editingValues}
         onClose={() => setIsFormOpen(false)}
