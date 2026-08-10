@@ -1,6 +1,7 @@
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProcessStepsGrid, type ProcessStepEntry } from "@/components/process-steps-grid";
+import { SectionCta } from "@/components/section-cta";
 
 export function Process({ steps }: { steps: ProcessStepEntry[] }) {
   return (
@@ -19,6 +20,7 @@ export function Process({ steps }: { steps: ProcessStepEntry[] }) {
         <div className="mt-12">
           <ProcessStepsGrid steps={steps} />
         </div>
+        <SectionCta label="Curious how your project would move through this process?" />
       </Container>
     </section>
   );

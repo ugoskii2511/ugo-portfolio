@@ -4,6 +4,7 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ReviewCard } from "@/components/review-card";
 import { ReviewModalTrigger } from "@/components/review-modal-trigger";
+import { SectionCta } from "@/components/section-cta";
 
 export const metadata: Metadata = {
   title: "Client Reviews",
@@ -64,6 +65,7 @@ export default async function ReviewsPage() {
             </div>
           )}
         </div>
+        <SectionCta label="Ready to become the next review on this page?" />
       </Container>
     </div>
   );

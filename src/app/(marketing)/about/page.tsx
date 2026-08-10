@@ -9,6 +9,7 @@ import { TechGrid } from "@/components/about/tech-grid";
 import { AboutStats } from "@/components/about/about-stats";
 import { ProcessStepsGrid } from "@/components/process-steps-grid";
 import { FaqSection } from "@/components/about/faq-section";
+import { SectionCta } from "@/components/section-cta";
 import { getServiceCategories } from "@/lib/get-service-categories";
 
 export const metadata: Metadata = {
@@ -61,6 +62,7 @@ export default async function AboutPage() {
             averageRating,
           }}
         />
+        <SectionCta label="Numbers you can rely on — let's add your project to the list." />
       </Container>
 
       <Container className="mt-20">
@@ -68,6 +70,7 @@ export default async function AboutPage() {
         <div className="mt-8">
           <ValueProps />
         </div>
+        <SectionCta label="Sound like the kind of developer you need?" />
       </Container>
 
       <Container className="mt-20 max-w-4xl">
@@ -75,6 +78,7 @@ export default async function AboutPage() {
         <div className="mt-6">
           <TechGrid />
         </div>
+        <SectionCta label="Have a stack in mind already? Let's talk specifics." />
       </Container>
 
       <Container className="mt-20">
@@ -82,6 +86,7 @@ export default async function AboutPage() {
         <div className="mt-8">
           <ProcessStepsGrid steps={processSteps} />
         </div>
+        <SectionCta label="Ready to kick off with a Discovery call?" />
       </Container>
 
       <Container className="mt-20">

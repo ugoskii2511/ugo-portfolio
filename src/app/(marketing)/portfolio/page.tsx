@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProjectCard } from "@/components/project-card";
+import { SectionCta } from "@/components/section-cta";
 
 export const metadata: Metadata = {
   title: "Portfolio",
@@ -49,6 +50,7 @@ export default async function PortfolioPage() {
             ))}
           </div>
         )}
+        <SectionCta label="Like what you see? Let's scope out your project." />
       </Container>
     </div>
   );

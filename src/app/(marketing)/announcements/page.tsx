@@ -3,6 +3,7 @@ import { Megaphone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { SectionCta } from "@/components/section-cta";
 
 export const metadata: Metadata = {
   title: "Announcements",
@@ -56,6 +57,7 @@ export default async function AnnouncementsPage() {
             ))
           )}
         </div>
+        <SectionCta label="Don't wait on an announcement — reach out whenever you're ready." />
       </Container>
     </div>
   );

@@ -25,14 +25,21 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
       className="glass-panel group relative flex flex-col overflow-hidden rounded-2xl hover:-translate-y-1.5"
     >
       <div className="pointer-events-none absolute inset-0 z-10" style={spotlightStyle} />
-      <div className="relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br from-primary-soft to-transparent">
+      <div className="relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br from-primary-soft to-transparent">
         {project.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={project.imageUrl}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={project.imageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
+            />
+            {/* Cover images are often full-page screenshots with their own
+                text baked in near the crop line — fade the bottom edge into
+                the card body instead of cutting it off hard against the
+                title. */}
+            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-surface to-transparent" />
+          </>
         ) : (
           <>
             <div className="grid-texture absolute inset-0" />

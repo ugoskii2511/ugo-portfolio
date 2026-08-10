@@ -9,6 +9,7 @@ import { ReviewCard } from "@/components/review-card";
 import { ValueProps } from "@/components/value-props";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { SectionCta } from "@/components/section-cta";
 import { getServiceCategories } from "@/lib/get-service-categories";
 
 const DEFAULT_HERO_HEADLINE = "Building fast, modern web experiences that work.";
@@ -18,9 +19,11 @@ export default async function HomePage() {
     await Promise.all([
       prisma.project.count(),
       prisma.project.findMany({
-        where: { featured: true },
-        orderBy: [{ order: "asc" }, { createdAt: "desc" }],
-        take: 3,
+        // Featured projects float to the top, but the section always shows
+        // real work rather than sitting near-empty just because few
+        // projects have been explicitly marked "Featured" yet.
+        orderBy: [{ featured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
+        take: 6,
       }),
       prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
       prisma.review.findMany({
@@ -71,6 +74,7 @@ export default async function HomePage() {
           <div className="mt-10">
             <ValueProps />
           </div>
+          <SectionCta label="Like what you see? Let's build something just as solid for you." />
         </Container>
       </section>
 
@@ -113,6 +117,7 @@ export default async function HomePage() {
                 View full portfolio →
               </Link>
             </div>
+            <SectionCta label="Want a project like these built for your business?" />
           </Container>
         </section>
       )}
@@ -151,6 +156,7 @@ export default async function HomePage() {
                 Read all reviews →
               </Link>
             </div>
+            <SectionCta label="Ready to be my next success story?" />
           </Container>
         </section>
       )}
