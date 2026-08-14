@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { clsx } from "clsx";
@@ -94,7 +95,11 @@ export function AdminShell({ email, children }: { email: string; children: React
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border-subtle bg-surface p-5 lg:flex">
-        <Link href="/admin" className="mb-8 text-lg font-bold transition-opacity hover:opacity-80">
+        <Link
+          href="/admin"
+          className="mb-8 flex items-center gap-2.5 text-lg font-bold transition-opacity hover:opacity-80"
+        >
+          <Image src="/logo.jpg" alt="" width={28} height={28} className="rounded-lg" />
           Ugochukwu<span className="text-gradient-royal">.admin</span>
         </Link>
         <NavLinks layoutId="admin-active-pill-desktop" />
@@ -152,7 +157,12 @@ export function AdminShell({ email, children }: { email: string; children: React
               className="relative z-10 flex w-64 flex-col bg-surface p-5"
             >
               <div className="mb-8 flex items-center justify-between">
-                <Link href="/admin" className="text-lg font-bold" onClick={() => setIsMobileOpen(false)}>
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2.5 text-lg font-bold"
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  <Image src="/logo.jpg" alt="" width={28} height={28} className="rounded-lg" />
                   Ugochukwu<span className="text-gradient-royal">.admin</span>
                 </Link>
                 <button

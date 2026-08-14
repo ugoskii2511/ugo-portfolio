@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { clsx } from "clsx";
@@ -33,10 +34,13 @@ export function Navbar({ reviewsVisible }: { reviewsVisible: boolean }) {
       <Container className="flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="font-serif text-lg font-bold tracking-tight transition-opacity hover:opacity-80"
+          className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
           onClick={() => setIsMenuOpen(false)}
         >
-          Ugochukwu<span className="italic text-primary">.dev</span>
+          <Image src="/logo.jpg" alt="" width={32} height={32} className="rounded-lg" />
+          <span className="font-serif text-lg font-bold tracking-tight">
+            Ugochukwu<span className="italic text-primary">.dev</span>
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">

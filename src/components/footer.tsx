@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Mail, MessageCircle } from "lucide-react";
 import { FaSnapchat, FaTiktok } from "react-icons/fa6";
 import { Container } from "@/components/ui/container";
@@ -44,9 +45,12 @@ export function Footer({
       <div className="grid-texture absolute inset-0 -z-10" />
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-1">
-          <p className="font-serif text-lg font-bold">
-            Ugochukwu<span className="italic text-primary">.dev</span>
-          </p>
+          <div className="flex items-center gap-2.5">
+            <Image src="/logo.jpg" alt="" width={32} height={32} className="rounded-lg" />
+            <p className="font-serif text-lg font-bold">
+              Ugochukwu<span className="italic text-primary">.dev</span>
+            </p>
+          </div>
           <p className="mt-3 max-w-xs text-sm text-foreground/70">{footerBio}</p>
           <a
             href={whatsappUrl}
