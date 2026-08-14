@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { adminLoginSchema } from "@/lib/validations";
 import { adminSessionCookieOptions, signAdminSession, verifyPassword } from "@/lib/auth";
 import { handleApiError } from "@/lib/apiError";
+import { isRateLimited } from "@/lib/rateLimit";
 
 // A valid bcrypt hash with no known matching password. Comparing against it
 // when the email isn't found keeps failed-login timing consistent, so the
@@ -12,6 +13,13 @@ const DUMMY_PASSWORD_HASH =
 
 export async function POST(request: NextRequest) {
   try {
+    if (await isRateLimited(request, "admin-login", 10, 10 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again in a few minutes." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = adminLoginSchema.parse(body);
 

@@ -78,6 +78,13 @@ function buildPersonJsonLd(email: string, name: string, tagline: string) {
   };
 }
 
+/// name/tagline/email here come from admin-editable site settings. Escaping
+/// "<" stops a "</script>" sequence in any of those fields from closing this
+/// tag early and letting the rest of its content run as live HTML/script.
+function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 async function getLatestAnnouncement() {
   const now = new Date();
   const announcement = await prisma.announcement.findFirst({
@@ -118,7 +125,7 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(buildPersonJsonLd(contactEmail, siteName, siteTagline)),
+            __html: safeJsonLd(buildPersonJsonLd(contactEmail, siteName, siteTagline)),
           }}
         />
         <Providers serviceCategories={serviceCategories}>
