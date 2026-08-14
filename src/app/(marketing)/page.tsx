@@ -156,7 +156,7 @@ export default async function HomePage() {
                 Read all reviews →
               </Link>
             </div>
-            <SectionCta label="Ready to be my next success story?" />
+            <SectionCta label="Want results like these for your own project?" />
           </Container>
         </section>
       )}

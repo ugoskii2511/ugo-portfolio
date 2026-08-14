@@ -65,7 +65,7 @@ export default async function ReviewsPage() {
             </div>
           )}
         </div>
-        <SectionCta label="Ready to become the next review on this page?" />
+        <SectionCta label="Let's get you results worth talking about too." />
       </Container>
     </div>
   );
