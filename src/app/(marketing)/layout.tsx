@@ -75,6 +75,8 @@ function buildPersonJsonLd(email: string, name: string, tagline: string) {
     jobTitle: tagline,
     url: SITE_URL,
     email,
+    image: `${SITE_URL}/logo.jpg`,
+    sameAs: ["https://www.tiktok.com/@ugoskii_51", "https://www.snapchat.com/add/ugoskii_51"],
   };
 }
 

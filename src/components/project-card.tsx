@@ -31,7 +31,7 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={project.imageUrl}
-              alt=""
+              alt={`Screenshot of the ${project.name} project`}
               className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
             />
             {/* Cover images are often full-page screenshots with their own
