@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { Container } from "@/components/ui/container";
-import { SectionHeading } from "@/components/ui/section-heading";
+import { Wrap } from "@/components/site/wrap";
+import { SectionIntro } from "@/components/site/section-intro";
 import { ReviewCard } from "@/components/review-card";
 import { ReviewModalTrigger } from "@/components/review-modal-trigger";
-import { SectionCta } from "@/components/section-cta";
+import { FinalCta } from "@/components/home/final-cta";
+import { DEFAULT_CONTACT_EMAIL, getSettings } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Client Reviews",
-  description: "Read what clients say about working with Ugochukwu Chukwu Christian.",
+  title: "Client reviews",
+  description: "What clients say about working with Ugochukwu Chukwu Christian, in their own words.",
+  alternates: { canonical: "/reviews" },
 };
 
 export default async function ReviewsPage() {
   const [settings, reviews] = await Promise.all([
-    prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
+    getSettings(),
     prisma.review.findMany({
       where: { status: "APPROVED" },
       orderBy: { createdAt: "desc" },
@@ -23,50 +25,43 @@ export default async function ReviewsPage() {
   const sectionVisible = settings?.reviewsSectionShown ?? true;
 
   return (
-    <div className="py-20">
-      <Container>
-        <SectionHeading
-          eyebrow="Client Reviews"
-          title={
-            <>
-              What clients <span className="italic text-primary">say</span>
-            </>
-          }
-          description="Honest feedback from people I've built websites and platforms for."
-        />
+    <>
+      <section className="pb-24 pt-16 sm:pb-32 sm:pt-24">
+        <Wrap>
+          <SectionIntro
+            headingLevel={1}
+            label="Client reviews"
+            title="In their words."
+            description="Unedited feedback from people I've built for. Every review is submitted by the client and approved before it appears."
+            action={<ReviewModalTrigger />}
+          />
 
-        <div className="mt-8 flex justify-center">
-          <ReviewModalTrigger />
-        </div>
-
-        <div className="mt-16">
-          {!sectionVisible ? (
-            <p className="text-center text-foreground/60">
-              Reviews are temporarily hidden — check back soon.
-            </p>
-          ) : reviews.length === 0 ? (
-            <p className="text-center text-foreground/60">
-              No reviews yet — be the first to share your experience!
-            </p>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {reviews.map((review) => (
-                <ReviewCard
-                  key={review.id}
-                  review={{
-                    id: review.id,
-                    clientName: review.clientName,
-                    position: review.position,
-                    rating: review.rating,
-                    message: review.message,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        <SectionCta label="Let's get you results worth talking about too." />
-      </Container>
-    </div>
+          <div className="mt-14 lg:mt-20">
+            {!sectionVisible ? (
+              <p className="text-muted">Reviews are temporarily hidden. Check back soon.</p>
+            ) : reviews.length === 0 ? (
+              <p className="text-muted">No reviews yet. If we&apos;ve worked together, you could be the first.</p>
+            ) : (
+              <ul className="columns-1 gap-4 md:columns-2 lg:columns-3">
+                {reviews.map((review, index) => (
+                  <ReviewCard
+                    key={review.id}
+                    index={index}
+                    review={{
+                      id: review.id,
+                      clientName: review.clientName,
+                      position: review.position,
+                      rating: review.rating,
+                      message: review.message,
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </Wrap>
+      </section>
+      <FinalCta contactEmail={settings?.contactEmail ?? DEFAULT_CONTACT_EMAIL} />
+    </>
   );
 }

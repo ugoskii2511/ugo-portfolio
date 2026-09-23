@@ -1,7 +1,3 @@
-"use client";
-
-import { StarRating } from "@/components/star-rating";
-import { useSpotlight } from "@/lib/use-spotlight";
 import { Reveal } from "@/components/reveal";
 
 export type ReviewCardData = {
@@ -12,22 +8,29 @@ export type ReviewCardData = {
   message: string;
 };
 
-export function ReviewCard({ review }: { review: ReviewCardData }) {
-  const { onMouseMove, onMouseLeave, spotlightStyle } = useSpotlight();
-
+export function ReviewCard({ review, index = 0 }: { review: ReviewCardData; index?: number }) {
   return (
     <Reveal
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      className="glass-panel relative flex flex-col gap-3 overflow-hidden rounded-2xl p-6 hover:-translate-y-1"
+      as="li"
+      delay={(index % 3) * 70}
+      className="mb-4 break-inside-avoid rounded-[1.25rem] border border-line bg-raised p-6 sm:p-7"
     >
-      <div className="pointer-events-none absolute inset-0" style={spotlightStyle} />
-      <StarRating value={review.rating} />
-      <p className="font-serif text-base italic text-foreground/80">&ldquo;{review.message}&rdquo;</p>
-      <div>
-        <p className="text-sm font-semibold text-primary">{review.clientName}</p>
-        {review.position && <p className="text-xs text-foreground/60">{review.position}</p>}
-      </div>
+      <figure className="flex flex-col gap-6">
+        <p
+          className="font-mono text-xs tracking-[0.2em] text-accent-bright"
+          aria-label={`Rated ${review.rating} out of 5`}
+        >
+          {"★".repeat(review.rating)}
+          <span className="text-faint">{"★".repeat(5 - review.rating)}</span>
+        </p>
+        <blockquote className="whitespace-pre-line text-pretty leading-relaxed text-fg/85">
+          &ldquo;{review.message.trim()}&rdquo;
+        </blockquote>
+        <figcaption className="border-t border-line pt-4">
+          <p className="text-sm font-medium">{review.clientName}</p>
+          {review.position && <p className="mt-0.5 text-xs text-faint">{review.position}</p>}
+        </figcaption>
+      </figure>
     </Reveal>
   );
 }

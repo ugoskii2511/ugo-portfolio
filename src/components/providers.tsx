@@ -8,15 +8,15 @@ import type { ServiceCategory } from "@/lib/services-data";
 export function Providers({
   children,
   serviceCategories,
+  forcedTheme,
 }: {
   children: ReactNode;
   serviceCategories: ServiceCategory[];
+  forcedTheme?: string;
 }) {
   return (
-    <ThemeProvider>
-      <BookingModalProvider serviceCategories={serviceCategories}>
-        {children}
-      </BookingModalProvider>
+    <ThemeProvider forcedTheme={forcedTheme}>
+      <BookingModalProvider serviceCategories={serviceCategories}>{children}</BookingModalProvider>
     </ThemeProvider>
   );
 }

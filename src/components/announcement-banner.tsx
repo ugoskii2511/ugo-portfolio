@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Megaphone, X } from "lucide-react";
+import { X } from "lucide-react";
 
 const DISMISSED_KEY = "dismissed-announcement-id";
 
@@ -42,16 +42,16 @@ export function AnnouncementBanner({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden bg-gradient-to-r from-primary to-primary-dark text-white"
+          className="relative z-50 overflow-hidden border-b border-line bg-accent-soft text-fg"
         >
-          <div className="mx-auto flex max-w-6xl items-center justify-center gap-3 px-4 py-2.5 text-center text-sm">
-            <Megaphone className="h-4 w-4 shrink-0" />
+          <div className="mx-auto flex max-w-[80rem] items-center justify-center gap-3 px-5 py-2 text-center text-[0.8rem] sm:px-8 lg:px-12">
+            <span className="live-dot shrink-0" aria-hidden />
             <span>{announcement.message}</span>
             <button
               type="button"
               onClick={dismiss}
               aria-label="Dismiss announcement"
-              className="ml-auto shrink-0 rounded-full p-1 transition hover:bg-white/20"
+              className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white/10 hover:text-fg"
             >
               <X className="h-4 w-4" />
             </button>

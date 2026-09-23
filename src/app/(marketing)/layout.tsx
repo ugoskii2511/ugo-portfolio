@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 import { prisma } from "@/lib/db";
 import { Providers } from "@/components/providers";
@@ -7,9 +7,9 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PageViewTracker } from "@/components/page-view-tracker";
-import { PageTransition } from "@/components/page-transition";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import { getServiceCategories } from "@/lib/get-service-categories";
+import { getSettings } from "@/lib/content";
 
 // Announcements, projects, and reviews are managed live from the admin
 // dashboard, so every page needs to be rendered per-request rather than
@@ -26,29 +26,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["600", "700", "900"],
-  style: ["normal", "italic"],
-});
+export const viewport: Viewport = {
+  themeColor: "#050608",
+  colorScheme: "dark",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+  const settings = await getSettings();
   const siteName = settings?.siteName ?? SITE_NAME;
   const siteTagline = settings?.siteTagline ?? SITE_TAGLINE;
   const siteDescription = settings?.siteDescription ?? SITE_DESCRIPTION;
-  const title = `${siteName} | ${siteTagline}`;
+  const title = `${siteName} — ${siteTagline}`;
 
   return {
     metadataBase: new URL(SITE_URL),
     title: {
       default: title,
-      template: `%s | ${siteName}`,
+      template: `%s — ${siteName}`,
     },
     description: siteDescription,
+    applicationName: "Ugochukwu.dev",
+    authors: [{ name: siteName, url: SITE_URL }],
+    creator: siteName,
+    keywords: [
+      "software engineer",
+      "web developer",
+      "web application development",
+      "SaaS development",
+      "Next.js developer",
+      "React developer",
+      "Nigeria",
+      "Abuja",
+    ],
     openGraph: {
       type: "website",
+      locale: "en_US",
       url: SITE_URL,
       siteName,
       title,
@@ -65,18 +77,33 @@ export async function generateMetadata(): Promise<Metadata> {
 const DEFAULT_CONTACT_EMAIL = "elitetechsolutions607@gmail.com";
 const DEFAULT_WHATSAPP_NUMBER = "2349065606430";
 const DEFAULT_FOOTER_BIO =
-  "Ugochukwu Chukwu Christian — full-stack web developer building fast, modern websites, dashboards, and platforms.";
+  "Independent software engineer building websites, web applications and SaaS products, from first idea to production.";
 
-function buildPersonJsonLd(email: string, name: string, tagline: string) {
+function buildJsonLd(email: string, name: string, tagline: string, description: string) {
   return {
     "@context": "https://schema.org",
-    "@type": "Person",
-    name,
-    jobTitle: tagline,
-    url: SITE_URL,
-    email,
-    image: `${SITE_URL}/logo.jpg`,
-    sameAs: ["https://www.tiktok.com/@ugoskii_51", "https://www.snapchat.com/add/ugoskii_51"],
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": `${SITE_URL}/#person`,
+        name,
+        jobTitle: tagline,
+        description,
+        url: SITE_URL,
+        email,
+        image: `${SITE_URL}/logo.jpg`,
+        address: { "@type": "PostalAddress", addressCountry: "NG" },
+        knowsAbout: ["Web development", "Web applications", "SaaS", "Next.js", "React", "TypeScript"],
+        sameAs: ["https://www.tiktok.com/@ugoskii_51", "https://www.snapchat.com/add/ugoskii_51"],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "Ugochukwu.dev",
+        publisher: { "@id": `${SITE_URL}/#person` },
+      },
+    ],
   };
 }
 
@@ -107,7 +134,7 @@ export default async function RootLayout({
 }>) {
   const [announcement, settings, serviceCategories] = await Promise.all([
     getLatestAnnouncement(),
-    prisma.siteSettings.findUnique({ where: { id: "singleton" } }),
+    getSettings(),
     getServiceCategories(),
   ]);
   const contactEmail = settings?.contactEmail ?? DEFAULT_CONTACT_EMAIL;
@@ -115,33 +142,41 @@ export default async function RootLayout({
   const footerBio = settings?.footerBio ?? DEFAULT_FOOTER_BIO;
   const siteName = settings?.siteName ?? SITE_NAME;
   const siteTagline = settings?.siteTagline ?? SITE_TAGLINE;
+  const siteDescription = settings?.siteDescription ?? SITE_DESCRIPTION;
   const reviewsVisible = settings?.reviewsSectionShown ?? true;
 
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      style={{ colorScheme: "dark" }}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="site flex min-h-full flex-col">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd(buildPersonJsonLd(contactEmail, siteName, siteTagline)),
+            __html: safeJsonLd(buildJsonLd(contactEmail, siteName, siteTagline, siteDescription)),
           }}
         />
-        <Providers serviceCategories={serviceCategories}>
+        <Providers serviceCategories={serviceCategories} forcedTheme="dark">
+          <a
+            href="#main"
+            className="sr-only z-[70] rounded-full bg-accent px-4 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          >
+            Skip to content
+          </a>
+          <div aria-hidden className="rails hidden xl:block" />
           <PageViewTracker />
           <AnnouncementBanner announcement={announcement} />
-          <Navbar reviewsVisible={reviewsVisible} />
-          <main className="flex-1">
-            <PageTransition>{children}</PageTransition>
+          <Navbar contactEmail={contactEmail} />
+          <main id="main" className="relative flex-1">
+            {children}
           </main>
           <Footer
             contactEmail={contactEmail}
             whatsappNumber={whatsappNumber}
             footerBio={footerBio}
-            serviceCategories={serviceCategories}
             reviewsVisible={reviewsVisible}
           />
         </Providers>

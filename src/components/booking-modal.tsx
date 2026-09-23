@@ -119,14 +119,14 @@ export function BookingModalProvider({
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               onClick={close}
             />
             <motion.div
               role="dialog"
               aria-modal="true"
-              aria-label="Book a service"
-              className="glass-panel relative z-10 w-full max-w-lg rounded-2xl p-6 sm:p-8"
+              aria-labelledby="booking-title"
+              className="edge relative z-10 max-h-[calc(100svh-2rem)] w-full max-w-lg overflow-y-auto rounded-[1.4rem] p-6 text-fg sm:p-8"
               initial={{ opacity: 0, y: 24, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -136,23 +136,23 @@ export function BookingModalProvider({
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="absolute right-4 top-4 rounded-full p-1.5 text-foreground/60 transition hover:bg-primary-soft hover:text-foreground"
+                className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-muted transition hover:bg-white/5 hover:text-fg"
               >
                 <X className="h-5 w-5" />
               </button>
 
               {status === "success" ? (
                 <div className="flex flex-col items-center gap-4 py-6 text-center">
-                  <CheckCircle2 className="h-14 w-14 text-primary" />
-                  <h3 className="text-xl font-semibold">You&apos;re all set!</h3>
-                  <p className="text-sm text-foreground/70">
+                  <CheckCircle2 className="h-14 w-14 text-accent-bright" />
+                  <h3 id="booking-title" className="text-2xl font-semibold tracking-tight">You&apos;re all set</h3>
+                  <p className="text-sm text-muted">
                     A WhatsApp chat with Ugochukwu should have opened in a new tab. If it
                     didn&apos;t, tap the button below.
                   </p>
                   <button
                     type="button"
                     onClick={close}
-                    className="mt-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90"
+                    className="mt-2 min-h-11 rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#4f79ff]"
                   >
                     Done
                   </button>
@@ -160,8 +160,9 @@ export function BookingModalProvider({
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   <div>
-                    <h3 className="text-xl font-semibold">Book this service</h3>
-                    <p className="mt-1 text-sm text-foreground/70">
+                    <p className="label-mono">New project</p>
+                    <h3 id="booking-title" className="mt-3 text-2xl font-semibold tracking-tight">Tell me what you&apos;re building</h3>
+                    <p className="mt-1 text-sm text-muted">
                       Fill this in and we&apos;ll continue the conversation on WhatsApp.
                     </p>
                   </div>
@@ -179,34 +180,36 @@ export function BookingModalProvider({
                   />
 
                   <label className="flex flex-col gap-1.5 text-sm">
-                    <span className="font-medium">Your Name</span>
+                    <span className="font-medium text-fg/90">Your Name</span>
                     <input
                       required
+                      autoFocus
+                      autoComplete="name"
                       value={clientName}
                       onChange={(event) => setClientName(event.target.value)}
                       placeholder="e.g. Jane Doe"
-                      className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                      className="field"
                     />
                   </label>
 
                   <label className="flex flex-col gap-1.5 text-sm">
-                    <span className="font-medium">Estimated Budget</span>
+                    <span className="font-medium text-fg/90">Estimated Budget</span>
                     <input
                       required
                       value={budget}
                       onChange={(event) => setBudget(event.target.value)}
                       placeholder="e.g. ₦300,000 or $500"
-                      className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                      className="field"
                     />
                   </label>
 
                   <label className="flex flex-col gap-1.5 text-sm">
-                    <span className="font-medium">Type of Website / Project</span>
+                    <span className="font-medium text-fg/90">Type of Website / Project</span>
                     <select
                       required
                       value={projectType}
                       onChange={(event) => setProjectType(event.target.value)}
-                      className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                      className="field"
                     >
                       <option value="General Inquiry">General Inquiry / Not sure yet</option>
                       {serviceCategories.map((category) => (
@@ -222,25 +225,25 @@ export function BookingModalProvider({
                   </label>
 
                   <label className="flex flex-col gap-1.5 text-sm">
-                    <span className="font-medium">Project Brief / Extra Info</span>
+                    <span className="font-medium text-fg/90">Project Brief / Extra Info</span>
                     <textarea
                       required
                       value={details}
                       onChange={(event) => setDetails(event.target.value)}
                       rows={3}
                       placeholder="Tell me a bit about what you need..."
-                      className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                      className="field resize-none"
                     />
                   </label>
 
                   {status === "error" && (
-                    <p className="text-sm text-red-500">{errorMessage}</p>
+                    <p className="text-sm text-red-400">{errorMessage}</p>
                   )}
 
                   <button
                     type="submit"
                     disabled={status === "submitting"}
-                    className="mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:opacity-60"
+                    className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:bg-[#4f79ff] disabled:opacity-60"
                   >
                     {status === "submitting" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

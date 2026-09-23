@@ -4,8 +4,10 @@ import { useEffect, useRef, useState, type HTMLAttributes } from "react";
 import { clsx } from "clsx";
 import { useHasMounted } from "@/lib/use-has-mounted";
 
-interface RevealProps extends HTMLAttributes<HTMLDivElement> {
+interface RevealProps extends HTMLAttributes<HTMLElement> {
   delay?: number;
+  /// Rendered element; use "li" inside lists to keep the markup valid.
+  as?: "div" | "li" | "article" | "section";
 }
 
 /// Scroll/mount reveal built on a real IntersectionObserver + CSS
@@ -22,8 +24,8 @@ interface RevealProps extends HTMLAttributes<HTMLDivElement> {
 /// no-JS fallback), and only *after* mount does it drop into a hidden
 /// state and observe, so the reveal-in transition genuinely runs for
 /// JS-enabled visitors regardless of hydration timing.
-export function Reveal({ delay = 0, className, style, children, ...rest }: RevealProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export function Reveal({ delay = 0, as: Tag = "div", className, style, children, ...rest }: RevealProps) {
+  const ref = useRef<HTMLElement>(null);
   const mounted = useHasMounted();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -46,17 +48,17 @@ export function Reveal({ delay = 0, className, style, children, ...rest }: Revea
   const revealed = !mounted || isVisible;
 
   return (
-    <div
-      ref={ref}
+    <Tag
+      ref={ref as React.Ref<HTMLDivElement & HTMLLIElement>}
       style={{ ...style, transitionDelay: revealed ? `${delay}ms` : "0ms" }}
       className={clsx(
-        "transition-all duration-500 ease-out",
-        revealed ? "opacity-100 translate-y-0" : "translate-y-6 opacity-0",
+        "transition-[opacity,transform,translate,border-color,background-color] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        revealed ? "opacity-100 translate-y-0" : "translate-y-5 opacity-0",
         className
       )}
       {...rest}
     >
       {children}
-    </div>
+    </Tag>
   );
 }

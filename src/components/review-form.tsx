@@ -44,9 +44,9 @@ export function ReviewForm({ onSuccess }: { onSuccess?: () => void }) {
   if (status === "success") {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
-        <CheckCircle2 className="h-14 w-14 text-primary" />
+        <CheckCircle2 className="h-14 w-14 text-accent-bright" />
         <h3 className="text-xl font-semibold">Thank you!</h3>
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-muted">
           Your review has been submitted and will appear here once it&apos;s approved.
         </p>
       </div>
@@ -68,50 +68,50 @@ export function ReviewForm({ onSuccess }: { onSuccess?: () => void }) {
       />
 
       <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">Your Name</span>
+        <span className="font-medium text-fg/90">Your Name</span>
         <input
           required
           value={clientName}
           onChange={(event) => setClientName(event.target.value)}
           placeholder="e.g. Jane Doe"
-          className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+          className="field"
         />
       </label>
 
       <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">Your Position</span>
+        <span className="font-medium text-fg/90">Your Position</span>
         <input
           required
           value={position}
           onChange={(event) => setPosition(event.target.value)}
           placeholder="e.g. CEO, Marketing Manager"
-          className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+          className="field"
         />
       </label>
 
       <div className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">Rating</span>
+        <span className="font-medium text-fg/90">Rating</span>
         <StarRating value={rating} onChange={setRating} size={24} />
       </div>
 
       <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">Your Review</span>
+        <span className="font-medium text-fg/90">Your Review</span>
         <textarea
           required
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           rows={4}
           placeholder="Tell us about your experience working with Ugochukwu..."
-          className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+          className="field resize-none"
         />
       </label>
 
-      {status === "error" && <p className="text-sm text-red-500">{errorMessage}</p>}
+      {status === "error" && <p className="text-sm text-red-400">{errorMessage}</p>}
 
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:opacity-60"
+        className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:bg-[#4f79ff] disabled:opacity-60"
       >
         {status === "submitting" ? (
           <Loader2 className="h-4 w-4 animate-spin" />

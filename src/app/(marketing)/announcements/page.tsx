@@ -1,64 +1,74 @@
 import type { Metadata } from "next";
-import { Megaphone } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { Container } from "@/components/ui/container";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { SectionCta } from "@/components/section-cta";
+import { Wrap } from "@/components/site/wrap";
+import { SectionIntro } from "@/components/site/section-intro";
+import { Reveal } from "@/components/reveal";
+import { FinalCta } from "@/components/home/final-cta";
+import { DEFAULT_CONTACT_EMAIL, getSettings } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Announcements",
   description: "Availability updates and news from Ugochukwu Chukwu Christian.",
+  alternates: { canonical: "/announcements" },
 };
 
 export default async function AnnouncementsPage() {
   const now = new Date();
-  const announcements = await prisma.announcement.findMany({
-    where: {
-      isActive: true,
-      startsAt: { lte: now },
-      OR: [{ endsAt: null }, { endsAt: { gte: now } }],
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const [announcements, settings] = await Promise.all([
+    prisma.announcement.findMany({
+      where: {
+        isActive: true,
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    getSettings(),
+  ]);
 
   return (
-    <div className="py-20">
-      <Container className="max-w-3xl">
-        <SectionHeading
-          eyebrow="Announcements"
-          title={
-            <>
-              Latest <span className="italic text-primary">updates</span>
-            </>
-          }
-          description="Availability, offers, and news — straight from me."
-        />
-
-        <div className="mt-12 flex flex-col gap-4">
-          {announcements.length === 0 ? (
-            <p className="text-center text-foreground/60">No announcements right now.</p>
-          ) : (
-            announcements.map((announcement) => (
-              <div key={announcement.id} className="glass-panel flex items-start gap-4 rounded-2xl p-6">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark text-white">
-                  <Megaphone className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-foreground/90">{announcement.message}</p>
-                  <p className="mt-1 text-xs text-foreground/50">
-                    {new Date(announcement.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        <SectionCta label="Don't wait on an announcement — reach out whenever you're ready." />
-      </Container>
-    </div>
+    <>
+      <section className="pb-24 pt-16 sm:pb-32 sm:pt-24">
+        <Wrap>
+          <SectionIntro
+            headingLevel={1}
+            label="Announcements"
+            title="Updates."
+            description="Availability, openings and news, straight from me."
+          />
+          <div className="mt-14 lg:mt-20">
+            {announcements.length === 0 ? (
+              <p className="border-t border-line pt-8 text-muted">Nothing new right now.</p>
+            ) : (
+              <ol className="border-t border-line">
+                {announcements.map((announcement, index) => (
+                  <Reveal
+                    as="li"
+                    key={announcement.id}
+                    delay={index * 60}
+                    className="grid gap-3 border-b border-line py-8 md:grid-cols-12 md:gap-10"
+                  >
+                    <time
+                      dateTime={announcement.createdAt.toISOString()}
+                      className="label-mono md:col-span-3 md:pt-1.5"
+                    >
+                      {announcement.createdAt.toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </time>
+                    <p className="text-pretty text-xl leading-snug tracking-tight md:col-span-9">
+                      {announcement.message}
+                    </p>
+                  </Reveal>
+                ))}
+              </ol>
+            )}
+          </div>
+        </Wrap>
+      </section>
+      <FinalCta contactEmail={settings?.contactEmail ?? DEFAULT_CONTACT_EMAIL} />
+    </>
   );
 }

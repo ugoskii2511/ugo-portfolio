@@ -1,48 +1,62 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
-import { Reveal } from "@/components/reveal";
+import { useId, useState } from "react";
+import { clsx } from "clsx";
+import { Plus } from "lucide-react";
 
 export type FaqEntry = { id: string; question: string; answer: string };
 
 export function FaqSection({ faqs }: { faqs: FaqEntry[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const baseId = useId();
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-3">
+    <ul className="border-t border-line">
       {faqs.map((faq, index) => {
         const isOpen = openIndex === index;
+        const panelId = `${baseId}-${index}`;
         return (
-          <Reveal key={faq.id} delay={index * 40} className="glass-panel overflow-hidden rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setOpenIndex(isOpen ? null : index)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-            >
-              <span className="font-medium">{faq.question}</span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-primary transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="overflow-hidden"
+          <li key={faq.id} className="border-b border-line">
+            <h3>
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : index)}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                className="group flex min-h-11 w-full items-center justify-between gap-6 py-6 text-left"
+              >
+                <span
+                  className={clsx(
+                    "text-lg font-medium tracking-tight transition-colors sm:text-xl",
+                    isOpen ? "text-fg" : "text-fg/75 group-hover:text-fg"
+                  )}
                 >
-                  <p className="px-5 pb-5 text-sm text-foreground/70">{faq.answer}</p>
-                </motion.div>
+                  {faq.question}
+                </span>
+                <Plus
+                  aria-hidden
+                  className={clsx(
+                    "h-4 w-4 shrink-0 transition-transform duration-500",
+                    isOpen ? "rotate-45 text-accent-bright" : "text-muted"
+                  )}
+                />
+              </button>
+            </h3>
+            <div
+              id={panelId}
+              inert={!isOpen}
+              className={clsx(
+                "grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
               )}
-            </AnimatePresence>
-          </Reveal>
+            >
+              <div className="overflow-hidden">
+                <p className="max-w-2xl pb-7 text-pretty leading-relaxed text-muted">{faq.answer}</p>
+              </div>
+            </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
