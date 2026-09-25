@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
 import { useToast } from "@/components/admin/toast-provider";
+import { Field } from "@/components/admin/ui";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
 
 export type SiteContentValues = {
   availabilityStatus: string;
@@ -29,6 +32,28 @@ function toOverridePayload(value: string): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
+const SECTIONS = [
+  { id: "hero", label: "Homepage hero" },
+  { id: "about", label: "About" },
+  { id: "brand", label: "Branding & SEO" },
+  { id: "contact", label: "Contact" },
+  { id: "stats", label: "Stat overrides" },
+];
+
+function Section({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24 rounded-2xl border border-line bg-raised">
+      <div className="border-b border-line px-5 py-4 sm:px-6">
+        <h2 id={`${id}-title`} className="text-sm font-semibold tracking-tight">
+          {title}
+        </h2>
+        <p className="mt-0.5 text-xs text-muted">{description}</p>
+      </div>
+      <div className="flex flex-col gap-5 px-5 py-5 sm:px-6">{children}</div>
+    </section>
+  );
+}
+
 export function SiteContentManager({
   initialValues,
   initialStatOverrides,
@@ -38,272 +63,216 @@ export function SiteContentManager({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const [saved, setSaved] = useState({ values: initialValues, stats: initialStatOverrides });
   const [values, setValues] = useState(initialValues);
   const [statOverrides, setStatOverrides] = useState(initialStatOverrides);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState("");
+  const id = useId();
+  const f = (name: string) => `${id}-${name}`;
+
+  const isDirty = useMemo(
+    () => JSON.stringify(values) !== JSON.stringify(saved.values) || JSON.stringify(statOverrides) !== JSON.stringify(saved.stats),
+    [values, statOverrides, saved]
+  );
+
+  // Warn before closing the tab with unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   function update<K extends keyof SiteContentValues>(key: K, value: SiteContentValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
-
   function updateStat<K extends keyof StatOverrideValues>(key: K, value: StatOverrideValues[K]) {
     setStatOverrides((v) => ({ ...v, [key]: value }));
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
-    setErrorMessage("");
-
+    setError("");
     try {
-      const response = await fetch("/api/settings", {
+      await adminRequest("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           ...values,
           projectsDeliveredOverride: toOverridePayload(statOverrides.projectsDeliveredOverride),
           clientReviewsOverride: toOverridePayload(statOverrides.clientReviewsOverride),
           serviceCategoriesOverride: toOverridePayload(statOverrides.serviceCategoriesOverride),
           averageRatingOverride: toOverridePayload(statOverrides.averageRatingOverride),
-        }),
+        },
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data?.error ?? "Something went wrong.");
-      }
-
-      toast.success("Site content updated.");
+      setSaved({ values, stats: statOverrides });
+      toast.success("Site content saved. It's live now.");
       router.refresh();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong.";
-      setErrorMessage(message);
+    } catch (err) {
+      const message = errorMessage(err);
+      setError(message);
       toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  const text = (key: keyof SiteContentValues, label: string, max: number, hint?: ReactNode, extra?: { placeholder?: string }) => (
+    <Field label={label} htmlFor={f(key)} count={[values[key].length, max]} hint={hint}>
+      <input
+        id={f(key)}
+        required
+        maxLength={max}
+        value={values[key]}
+        onChange={(e) => update(key, e.target.value)}
+        placeholder={extra?.placeholder}
+        className="field"
+      />
+    </Field>
+  );
+  const area = (key: keyof SiteContentValues, label: string, max: number, rows: number, hint?: ReactNode) => (
+    <Field label={label} htmlFor={f(key)} count={[values[key].length, max]} hint={hint}>
+      <textarea
+        id={f(key)}
+        required
+        rows={rows}
+        maxLength={max}
+        value={values[key]}
+        onChange={(e) => update(key, e.target.value)}
+        className="field resize-y"
+      />
+    </Field>
+  );
+  const stat = (key: keyof StatOverrideValues, label: string, extra: { max?: number; step?: number } = {}) => (
+    <Field label={label} htmlFor={f(key)}>
+      <input
+        id={f(key)}
+        type="number"
+        min={0}
+        max={extra.max}
+        step={extra.step ?? 1}
+        value={statOverrides[key]}
+        onChange={(e) => updateStat(key, e.target.value)}
+        placeholder="Auto (live value)"
+        className="field"
+      />
+    </Field>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="font-semibold">Hero Section</h2>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Availability badge</span>
-          <input
-            required
-            maxLength={100}
-            value={values.availabilityStatus}
-            onChange={(event) => update("availabilityStatus", event.target.value)}
-            placeholder="Open for New Projects"
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Shown in the pill badge at the top of the homepage hero.
-          </span>
-        </label>
+    <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[11rem_minmax(0,1fr)]">
+      <nav aria-label="Sections" className="hidden lg:block">
+        <ul className="sticky top-24 flex flex-col gap-0.5">
+          {SECTIONS.map((section) => (
+            <li key={section.id}>
+              <a
+                href={`#${section.id}`}
+                className="block rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-white/[0.03] hover:text-fg"
+              >
+                {section.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Hero headline</span>
-          <input
-            required
-            maxLength={150}
-            value={values.heroHeadline}
-            onChange={(event) => update("heroHeadline", event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            The big headline at the top of the homepage. Plain text — no partial bold/italic
-            styling.
-          </span>
-        </label>
+      <div className="flex min-w-0 flex-col gap-5">
+        <Section id="hero" title="Homepage hero" description="The first thing visitors read.">
+          {text("availabilityStatus", "Availability badge", 100, "The small pill above the headline.", { placeholder: "Open for new projects" })}
+          {text("heroHeadline", "Headline", 150, "Plain text. Each word animates in on load.")}
+          {area("heroIntro", "Intro paragraph", 600, 3)}
+        </Section>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Hero intro paragraph</span>
-          <textarea
-            required
-            rows={3}
-            maxLength={600}
-            value={values.heroIntro}
-            onChange={(event) => update("heroIntro", event.target.value)}
-            className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-        </label>
-      </div>
+        <Section id="about" title="About" description="Used on the About page, and its first paragraph on the homepage.">
+          {area("aboutBio", "Bio", 4000, 9, "Separate paragraphs with a blank line. The first paragraph is shown largest.")}
+        </Section>
 
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="font-semibold">About Page</h2>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Bio</span>
-          <textarea
-            required
-            rows={8}
-            maxLength={4000}
-            value={values.aboutBio}
-            onChange={(event) => update("aboutBio", event.target.value)}
-            className="resize-y rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Separate paragraphs with a blank line.
-          </span>
-        </label>
-      </div>
+        <Section id="brand" title="Branding & SEO" description="Browser tabs, search results and link previews.">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {text("siteName", "Site name", 100)}
+            {text("siteTagline", "Tagline", 100)}
+          </div>
+          {area("siteDescription", "Site description", 300, 2, "The summary search engines and social previews show.")}
+          {area("footerBio", "Footer text", 300, 2, "The short line under your name in the footer.")}
+        </Section>
 
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="font-semibold">Stats Overrides</h2>
-        <p className="text-xs text-foreground/50">
-          Leave any field blank to show the real, live-computed number (counted from your
-          actual projects/reviews). Only set one of these if you have a real figure that isn&apos;t
-          captured by counting rows on this site.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Projects delivered</span>
-            <input
-              type="number"
-              min={0}
-              value={statOverrides.projectsDeliveredOverride}
-              onChange={(event) => updateStat("projectsDeliveredOverride", event.target.value)}
-              placeholder="Auto (live count)"
-              className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Client reviews</span>
-            <input
-              type="number"
-              min={0}
-              value={statOverrides.clientReviewsOverride}
-              onChange={(event) => updateStat("clientReviewsOverride", event.target.value)}
-              placeholder="Auto (live count)"
-              className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Service categories</span>
-            <input
-              type="number"
-              min={0}
-              value={statOverrides.serviceCategoriesOverride}
-              onChange={(event) => updateStat("serviceCategoriesOverride", event.target.value)}
-              placeholder="Auto (live count)"
-              className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Average rating</span>
-            <input
-              type="number"
-              min={0}
-              max={5}
-              step={0.1}
-              value={statOverrides.averageRatingOverride}
-              onChange={(event) => updateStat("averageRatingOverride", event.target.value)}
-              placeholder="Auto (live average)"
-              className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-            />
-          </label>
+        <Section id="contact" title="Contact" description="Used by every contact link and the WhatsApp booking flow.">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Contact email" htmlFor={f("contactEmail")}>
+              <input
+                id={f("contactEmail")}
+                required
+                type="email"
+                value={values.contactEmail}
+                onChange={(e) => update("contactEmail", e.target.value)}
+                className="field"
+              />
+            </Field>
+            <Field label="WhatsApp number" htmlFor={f("whatsappNumber")} hint="Digits only, with country code. No + or spaces.">
+              <input
+                id={f("whatsappNumber")}
+                required
+                inputMode="numeric"
+                pattern="\d{6,15}"
+                value={values.whatsappNumber}
+                onChange={(e) => update("whatsappNumber", e.target.value.replace(/[^\d]/g, ""))}
+                placeholder="2349065606430"
+                className="field font-mono"
+              />
+            </Field>
+          </div>
+        </Section>
+
+        <Section
+          id="stats"
+          title="Stat overrides"
+          description="Leave blank to use the real, live-computed value. Only fill one in if you have a genuine number the site can't count."
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            {stat("projectsDeliveredOverride", "Projects delivered")}
+            {stat("clientReviewsOverride", "Client reviews")}
+            {stat("serviceCategoriesOverride", "Service categories")}
+            {stat("averageRatingOverride", "Average rating", { max: 5, step: 0.1 })}
+          </div>
+        </Section>
+
+        {/* Sticky save bar */}
+        <div className="sticky bottom-3 z-30 mt-2">
+          <div className="edge relative flex flex-col gap-3 rounded-2xl px-4 py-3 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)] sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm" aria-live="polite">
+              {error ? (
+                <span className="text-red-300">{error}</span>
+              ) : isDirty ? (
+                <span className="flex items-center gap-2 text-amber-300">
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
+                  Unsaved changes
+                </span>
+              ) : (
+                <span className="text-muted">All changes saved</span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={!isDirty || isSubmitting}
+                onClick={() => {
+                  setValues(saved.values);
+                  setStatOverrides(saved.stats);
+                  setError("");
+                }}
+                className={buttonClass("secondary", "sm")}
+              >
+                Discard
+              </button>
+              <button type="submit" disabled={!isDirty || isSubmitting} className={buttonClass("primary", "sm")}>
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                Save changes
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="font-semibold">Contact Info</h2>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Contact email</span>
-          <input
-            required
-            type="email"
-            value={values.contactEmail}
-            onChange={(event) => update("contactEmail", event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">WhatsApp number</span>
-          <input
-            required
-            value={values.whatsappNumber}
-            onChange={(event) => update("whatsappNumber", event.target.value.replace(/[^\d]/g, ""))}
-            placeholder="2349065606430"
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Digits only, country code included, no + or spaces. Used for every booking link
-            sitewide.
-          </span>
-        </label>
-      </div>
-
-      <div className="glass-panel flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="font-semibold">Branding</h2>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Site name</span>
-          <input
-            required
-            maxLength={100}
-            value={values.siteName}
-            onChange={(event) => update("siteName", event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Used in the browser tab title, search results, and social share previews.
-          </span>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Tagline</span>
-          <input
-            required
-            maxLength={100}
-            value={values.siteTagline}
-            onChange={(event) => update("siteTagline", event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Site description</span>
-          <textarea
-            required
-            rows={2}
-            maxLength={300}
-            value={values.siteDescription}
-            onChange={(event) => update("siteDescription", event.target.value)}
-            className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Used for search engine results and social share previews.
-          </span>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Footer bio</span>
-          <textarea
-            required
-            rows={2}
-            maxLength={300}
-            value={values.footerBio}
-            onChange={(event) => update("footerBio", event.target.value)}
-            className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-          <span className="text-xs text-foreground/50">
-            Short blurb shown under your name in the site footer.
-          </span>
-        </label>
-      </div>
-
-      {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
-
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="inline-flex w-fit items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:opacity-60"
-      >
-        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        Save Changes
-      </button>
     </form>
   );
 }

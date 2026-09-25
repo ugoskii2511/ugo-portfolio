@@ -35,12 +35,21 @@ export const reviewModerationSchema = z.object({
 // update. Keep defaults for genuinely-optional fields off objects that get
 // `.partial()`-ed; apply defaults explicitly at the create call site instead.
 
+// Links rendered as href/src on the public site: http(s) only. zod's .url()
+// alone also accepts javascript: and data: URLs, which would be live XSS
+// vectors in an <a href>.
+const httpUrl = z
+  .string()
+  .trim()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), "Must start with http:// or https://");
+
 export const projectSchema = z.object({
   name: z.string().trim().min(1).max(150),
   summary: z.string().trim().min(1).max(1000),
-  liveUrl: z.union([z.string().trim().url(), z.literal("")]).optional(),
+  liveUrl: z.union([httpUrl, z.literal("")]).optional(),
   techStack: z.array(z.string().trim().min(1)).max(20),
-  imageUrl: z.union([z.string().trim().url(), z.literal("")]).optional(),
+  imageUrl: z.union([httpUrl, z.literal("")]).optional(),
   featured: z.boolean(),
   order: z.coerce.number().int(),
 });

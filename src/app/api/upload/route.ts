@@ -7,7 +7,15 @@ import { handleApiError } from "@/lib/apiError";
 // under that (rather than Render, which had no such limit) so uploads don't
 // get rejected before this handler even runs.
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+// MIME type -> stored extension. The extension comes from the (already
+// validated) type, never from the client-supplied filename.
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+const ALLOWED_TYPES = Object.keys(EXTENSIONS);
 const BUCKET = "project-images";
 
 export async function POST(request: NextRequest) {
@@ -36,7 +44,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Image storage is not configured.");
     }
 
-    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const extension = EXTENSIONS[file.type];
     const path = `${randomUUID()}.${extension}`;
 
     const uploadResponse = await fetch(`${supabaseUrl}/storage/v1/object/${BUCKET}/${path}`, {

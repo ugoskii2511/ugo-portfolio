@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { clsx } from "clsx";
+import { ChevronDown, Pencil, Plus, Trash2, Wrench } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
 import { useToast } from "@/components/admin/toast-provider";
 import { useConfirm } from "@/components/admin/confirm-dialog";
-import {
-  ServiceCategoryFormModal,
-  type ServiceCategoryFormValues,
-} from "@/components/admin/service-category-form-modal";
-import {
-  ServiceItemFormModal,
-  type ServiceItemFormValues,
-} from "@/components/admin/service-item-form-modal";
+import { ServiceCategoryFormModal, type ServiceCategoryFormValues } from "@/components/admin/service-category-form-modal";
+import { ServiceItemFormModal, type ServiceItemFormValues } from "@/components/admin/service-item-form-modal";
+import { EmptyState, IconButton, PageHeader } from "@/components/admin/ui";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
+import { SERVICE_ICONS } from "@/lib/service-icons";
 import type { ServiceIcon } from "@/lib/services-data";
 
 export type AdminServiceItem = {
@@ -38,17 +36,17 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
   const searchParams = useSearchParams();
   const toast = useToast();
   const confirm = useConfirm();
+  const baseId = useId();
 
-  const [expandedId, setExpandedId] = useState<string | null>(categories[0]?.id ?? null);
-
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(categories[0] ? [categories[0].id] : []));
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategoryFormValues | null>(null);
-  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
-
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [itemFormCategoryId, setItemFormCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ServiceItemFormValues | null>(null);
-  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const totalServices = categories.reduce((sum, c) => sum + c.services.length, 0);
 
   function openCreateCategoryForm() {
     setEditingCategory(null);
@@ -57,6 +55,8 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
+      // Syncing UI state from the URL's query param is a legitimate
+      // external-system read, not derivable during render.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       openCreateCategoryForm();
       router.replace("/admin/services");
@@ -64,36 +64,35 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  function openEditCategoryForm(category: AdminServiceCategory) {
-    setEditingCategory({
-      id: category.id,
-      title: category.title,
-      description: category.description,
-      icon: category.icon,
-      order: category.order,
+  function toggle(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    setIsCategoryFormOpen(true);
   }
 
   async function handleDeleteCategory(category: AdminServiceCategory) {
     const ok = await confirm({
-      title: "Delete this category?",
-      description: `This also deletes all ${category.services.length} service(s) inside it. This can't be undone.`,
-      confirmLabel: "Delete",
+      title: `Delete "${category.title}"?`,
+      description:
+        category.services.length > 0
+          ? `This also deletes the ${category.services.length} service${category.services.length === 1 ? "" : "s"} inside it. This can't be undone.`
+          : "This can't be undone.",
+      confirmLabel: "Delete category",
       danger: true,
     });
     if (!ok) return;
-
-    setDeletingCategoryId(category.id);
+    setBusyId(category.id);
     try {
-      const response = await fetch(`/api/service-categories/${category.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed");
+      await adminRequest(`/api/service-categories/${category.id}`, { method: "DELETE" });
       toast.success("Category deleted.");
       router.refresh();
-    } catch {
-      toast.error("Couldn't delete that category.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't delete that category."));
     } finally {
-      setDeletingCategoryId(null);
+      setBusyId(null);
     }
   }
 
@@ -103,169 +102,157 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
     setIsItemFormOpen(true);
   }
 
-  function openEditItemForm(item: AdminServiceItem) {
-    setItemFormCategoryId(item.categoryId);
-    setEditingItem(item);
-    setIsItemFormOpen(true);
-  }
-
   async function handleDeleteItem(item: AdminServiceItem) {
     const ok = await confirm({
-      title: "Delete this service?",
-      description: "It will be removed from the Services page and booking form immediately.",
-      confirmLabel: "Delete",
+      title: `Delete "${item.title}"?`,
+      description: "It's removed from the Services page and the booking form immediately.",
+      confirmLabel: "Delete service",
       danger: true,
     });
     if (!ok) return;
-
-    setDeletingItemId(item.id);
+    setBusyId(item.id);
     try {
-      const response = await fetch(`/api/service-items/${item.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed");
+      await adminRequest(`/api/service-items/${item.id}`, { method: "DELETE" });
       toast.success("Service deleted.");
       router.refresh();
-    } catch {
-      toast.error("Couldn't delete that service.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't delete that service."));
     } finally {
-      setDeletingItemId(null);
+      setBusyId(null);
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Services</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Manage the categories and individual services shown on the Services page and booking
-            form.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateCategoryForm}
-          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-primary/25 transition hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          New Category
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Portfolio"
+        title="Services"
+        description={`The catalogue on /services and the options in the booking form. ${categories.length} categories · ${totalServices} services.`}
+        actions={
+          <button type="button" onClick={openCreateCategoryForm} className={buttonClass("primary", "sm")}>
+            <Plus className="h-4 w-4" aria-hidden />
+            New category
+          </button>
+        }
+      />
 
       {categories.length === 0 ? (
-        <div className="glass-panel rounded-2xl p-8 text-center text-foreground/60">
-          No service categories yet.
-        </div>
+        <EmptyState
+          icon={<Wrench className="h-5 w-5" />}
+          title="No service categories"
+          description="Group what you offer into categories, then add bookable services to each."
+          action={
+            <button type="button" onClick={openCreateCategoryForm} className={buttonClass("primary", "sm")}>
+              Create your first category →
+            </button>
+          }
+        />
       ) : (
-        <div className="flex flex-col gap-3">
-          {categories.map((category) => {
-            const isExpanded = expandedId === category.id;
+        <ul className="flex flex-col gap-3">
+          {categories.map((category, index) => {
+            const isOpen = expanded.has(category.id);
+            const panelId = `${baseId}-${category.id}`;
+            const Icon = SERVICE_ICONS[category.icon]?.icon ?? Wrench;
             return (
-              <div key={category.id} className="glass-panel overflow-hidden rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : category.id)}
-                  className="flex w-full items-center justify-between gap-4 p-5 text-left"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-primary">
-                        {category.icon}
-                      </span>
-                      <p className="font-semibold">{category.title}</p>
-                      <span className="text-xs text-foreground/50">
-                        {category.services.length} service{category.services.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-sm text-foreground/70">{category.description}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openEditCategoryForm(category);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Edit category"
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle transition hover:border-primary/40 hover:text-primary"
-                    >
-                      <Pencil className="h-4 w-4" />
+              <li key={category.id} className="overflow-hidden rounded-2xl border border-line bg-raised">
+                <div className="flex items-center gap-2 pr-3 sm:pr-4">
+                  <button
+                    type="button"
+                    onClick={() => toggle(category.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    className="flex min-w-0 flex-1 items-center gap-4 px-4 py-4 text-left sm:px-5"
+                  >
+                    <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-raised-2 text-accent-bright">
+                      <Icon className="h-4 w-4" />
                     </span>
-                    <span
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDeleteCategory(category);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Delete category"
-                      className={clsx(
-                        "flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle text-red-500 transition hover:bg-red-500/10",
-                        deletingCategoryId === category.id && "opacity-50"
-                      )}
-                    >
-                      <Trash2 className="h-4 w-4" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="font-mono text-[0.65rem] text-faint">{String(index + 1).padStart(2, "0")}</span>
+                        <span className="truncate font-medium tracking-tight">{category.title}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted">
+                        {category.services.length} service{category.services.length === 1 ? "" : "s"} · {category.description}
+                      </span>
                     </span>
                     <ChevronDown
-                      className={clsx(
-                        "h-4 w-4 text-foreground/50 transition-transform",
-                        isExpanded && "rotate-180"
-                      )}
+                      aria-hidden
+                      className={clsx("h-4 w-4 shrink-0 text-faint transition-transform duration-300", isOpen && "rotate-180")}
                     />
-                  </div>
-                </button>
+                  </button>
+                  <IconButton
+                    label={`Edit category ${category.title}`}
+                    onClick={() => {
+                      setEditingCategory({
+                        id: category.id,
+                        title: category.title,
+                        description: category.description,
+                        icon: category.icon,
+                        order: category.order,
+                      });
+                      setIsCategoryFormOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton
+                    label={`Delete category ${category.title}`}
+                    tone="danger"
+                    disabled={busyId === category.id}
+                    onClick={() => handleDeleteCategory(category)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </IconButton>
+                </div>
 
-                {isExpanded && (
-                  <div className="border-t border-border-subtle p-5">
-                    <div className="flex flex-col gap-2.5">
-                      {category.services.map((service) => (
-                        <div
-                          key={service.id}
-                          className="flex items-start justify-between gap-4 rounded-xl bg-surface px-4 py-3"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{service.title}</p>
-                            <p className="mt-0.5 text-xs text-foreground/60">{service.description}</p>
-                          </div>
-                          <div className="flex shrink-0 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openEditItemForm(service)}
-                              aria-label="Edit service"
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle transition hover:border-primary/40 hover:text-primary"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteItem(service)}
-                              disabled={deletingItemId === service.id}
-                              aria-label="Delete service"
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {category.services.length === 0 && (
-                        <p className="text-sm text-foreground/50">No services in this category yet.</p>
-                      )}
+                {isOpen && (
+                  <div id={panelId} className="border-t border-line">
+                    {category.services.length === 0 ? (
+                      <p className="px-5 py-6 text-sm text-muted">No services in this category yet.</p>
+                    ) : (
+                      <ul className="divide-y divide-line">
+                        {category.services.map((service) => (
+                          <li key={service.id} className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02] sm:px-5 sm:pl-[4.75rem]">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">{service.title}</p>
+                              <p className="mt-0.5 text-xs leading-relaxed text-muted">{service.description}</p>
+                            </div>
+                            <div className="flex shrink-0 gap-1.5">
+                              <IconButton
+                                label={`Edit ${service.title}`}
+                                onClick={() => {
+                                  setItemFormCategoryId(service.categoryId);
+                                  setEditingItem(service);
+                                  setIsItemFormOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </IconButton>
+                              <IconButton
+                                label={`Delete ${service.title}`}
+                                tone="danger"
+                                disabled={busyId === service.id}
+                                onClick={() => handleDeleteItem(service)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </IconButton>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="border-t border-line px-4 py-3 sm:px-5 sm:pl-[4.75rem]">
+                      <button type="button" onClick={() => openCreateItemForm(category.id)} className={buttonClass("ghost", "sm", "!px-0")}>
+                        <Plus className="h-4 w-4" aria-hidden />
+                        Add service to {category.title}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openCreateItemForm(category.id)}
-                      className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-dark"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Service
-                    </button>
                   </div>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       <ServiceCategoryFormModal
@@ -284,6 +271,7 @@ export function ServicesManager({ categories }: { categories: AdminServiceCatego
           key={editingItem?.id ?? `new-${itemFormCategoryId}`}
           isOpen={isItemFormOpen}
           categoryId={itemFormCategoryId}
+          categoryTitle={categories.find((c) => c.id === itemFormCategoryId)?.title}
           initialValues={editingItem}
           onClose={() => setIsItemFormOpen(false)}
           onSaved={(wasEditing) => {

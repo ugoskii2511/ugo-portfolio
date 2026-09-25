@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Dark is the flagship look (see ThemeProvider defaultTheme="dark").
-   Light mode is a fully-supported fallback, not an afterthought. */
+/* Base tokens. Both the public site and the admin force the dark theme;
+   the design-system tokens further down build on these. */
 :root {
   --background: #060a14;
   --foreground: #e7ebf7;
@@ -18,25 +18,6 @@
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   --grid-line: rgba(255, 255, 255, 0.05);
-}
-
-:root[data-theme="light"],
-.light {
-  --background: #f8fafc;
-  --foreground: #0b1120;
-  --surface: #ffffff;
-  --surface-muted: #eef2ff;
-  --border-subtle: rgba(15, 23, 42, 0.08);
-
-  --color-primary: #4169e1;
-  --color-primary-dark: #002366;
-  --color-primary-light: #7b93f0;
-  --color-primary-soft: #eef1fd;
-
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px rgba(0, 35, 102, 0.12);
-  --grid-line: rgba(15, 23, 42, 0.05);
 }
 
 @theme inline {
@@ -61,85 +42,6 @@
 body {
   background: var(--background);
   color: var(--foreground);
-}
-
-.text-gradient-royal {
-  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-
-.grid-texture {
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 64px 64px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
-}
-
-.hero-glow {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.hero-glow::before,
-.hero-glow::after {
-  content: "";
-  position: absolute;
-  width: 42rem;
-  height: 42rem;
-  border-radius: 9999px;
-  filter: blur(110px);
-  opacity: 0.28;
-  animation: drift 18s ease-in-out infinite alternate;
-}
-
-.hero-glow::before {
-  background: var(--color-primary);
-  top: -12rem;
-  left: -10rem;
-}
-
-.hero-glow::after {
-  background: var(--color-primary-dark);
-  bottom: -14rem;
-  right: -12rem;
-  animation-delay: 4s;
-}
-
-@keyframes drift {
-  from {
-    transform: translate(0, 0) scale(1);
-  }
-  to {
-    transform: translate(4rem, 3rem) scale(1.15);
-  }
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee {
-  animation: marquee 30s linear infinite;
 }
 
 @keyframes reveal-up {
@@ -445,4 +347,11 @@ body {
 .field optgroup {
   background: var(--raised-2);
   color: var(--fg);
+}
+
+/* Form fields have their own focus treatment (accent border + glow above),
+   so they skip the generic outline ring to avoid a doubled indicator. */
+.site .field:focus-visible,
+.site .field:focus-within {
+  outline: none;
 }

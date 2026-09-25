@@ -3,8 +3,8 @@ import { clsx } from "clsx";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
-export type ButtonSize = "md" | "lg";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
   "group/btn relative inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium tracking-tight transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
@@ -15,9 +15,12 @@ const VARIANTS: Record<ButtonVariant, string> = {
   secondary:
     "border border-line-strong bg-white/[0.02] text-fg hover:border-white/25 hover:bg-white/[0.06]",
   ghost: "text-fg hover:text-accent-bright",
+  danger: "border border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20 hover:text-red-200",
 };
 
 const SIZES: Record<ButtonSize, string> = {
+  // Dense dashboard controls; still a 40px tap target.
+  sm: "!min-h-10 px-4 py-2 text-[0.8rem]",
   md: "px-5 py-2.5 text-sm",
   lg: "px-6 py-3.5 text-[0.95rem]",
 };

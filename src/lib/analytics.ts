@@ -59,3 +59,38 @@ export async function getPageViewsTimeSeries(days = 14): Promise<DailyPageViews[
     };
   });
 }
+
+export type PeriodComparison = { current: number; previous: number };
+
+/// Event count for the last `days` days vs the `days` before that, for the
+/// overview's trend indicators.
+export async function getPeriodComparison(
+  type: "PAGE_VIEW" | "BOOKING_CLICK",
+  days = 30
+): Promise<PeriodComparison> {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const currentStart = new Date(now - days * dayMs);
+  const previousStart = new Date(now - 2 * days * dayMs);
+  const [current, previous] = await Promise.all([
+    prisma.analyticsEvent.count({ where: { type, createdAt: { gte: currentStart } } }),
+    prisma.analyticsEvent.count({ where: { type, createdAt: { gte: previousStart, lt: currentStart } } }),
+  ]);
+  return { current, previous };
+}
+
+export type TopPath = { path: string; views: number };
+
+/// Most-viewed paths over the last `days` days. Admin routes never record
+/// page views (the tracker only runs on the public site), so no filtering.
+export async function getTopPaths(days = 30, limit = 6): Promise<TopPath[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await prisma.analyticsEvent.groupBy({
+    by: ["path"],
+    where: { type: "PAGE_VIEW", createdAt: { gte: since }, path: { not: null } },
+    _count: { _all: true },
+    orderBy: { _count: { path: "desc" } },
+    take: limit,
+  });
+  return rows.map((row) => ({ path: row.path ?? "/", views: row._count._all }));
+}

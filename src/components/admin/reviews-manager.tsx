@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Trash2 } from "lucide-react";
-import { clsx } from "clsx";
-import { StarRating } from "@/components/star-rating";
-import { Reveal } from "@/components/reveal";
-import { useSpotlight } from "@/lib/use-spotlight";
+import { Check, Copy, RotateCcw, Star, Trash2, X } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
 import { useToast } from "@/components/admin/toast-provider";
 import { useConfirm } from "@/components/admin/confirm-dialog";
+import { EmptyState, IconButton, PageHeader, Panel, Segmented, StatusPill, Switch, formatDate, type Tone } from "@/components/admin/ui";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
 
 export type AdminReview = {
   id: string;
@@ -20,31 +19,14 @@ export type AdminReview = {
   createdAt: string;
 };
 
-const FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED"] as const;
-type Filter = (typeof FILTERS)[number];
+type Status = AdminReview["status"];
+type Filter = "ALL" | Status;
 
-function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={clsx(
-        "relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-50",
-        checked ? "bg-gradient-to-r from-primary to-primary-dark" : "bg-foreground/20"
-      )}
-    >
-      <span
-        className={clsx(
-          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-[22px]" : "translate-x-0.5"
-        )}
-      />
-    </button>
-  );
-}
+const STATUS: Record<Status, { label: string; tone: Tone }> = {
+  PENDING: { label: "Pending", tone: "warning" },
+  APPROVED: { label: "Live", tone: "success" },
+  REJECTED: { label: "Rejected", tone: "danger" },
+};
 
 export function ReviewsManager({
   reviews,
@@ -58,11 +40,13 @@ export function ReviewsManager({
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
+  const [sectionShown, setSectionShown] = useState(reviewsSectionShown);
   const [isTogglingSection, setIsTogglingSection] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("ALL");
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const pendingCount = reviews.filter((r) => r.status === "PENDING").length;
+  // Start on the moderation queue when there is one.
+  const [filter, setFilter] = useState<Filter>(pendingCount > 0 ? "PENDING" : "ALL");
 
   async function handleCopyLink() {
     try {
@@ -71,233 +55,228 @@ export function ReviewsManager({
       toast.success("Review link copied.");
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      toast.error("Couldn't copy the link — copy it manually instead.");
+      toast.error("Couldn't copy the link. Copy it manually instead.");
     }
   }
 
   async function handleSectionToggle(value: boolean) {
     setIsTogglingSection(true);
+    setSectionShown(value);
     try {
-      await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewsSectionShown: value }),
-      });
-      toast.success(value ? "Reviews section is now visible." : "Reviews section hidden sitewide.");
+      await adminRequest("/api/settings", { method: "PATCH", body: { reviewsSectionShown: value } });
+      toast.success(value ? "Reviews are visible on the site." : "Reviews are hidden sitewide.");
       router.refresh();
-    } catch {
-      toast.error("Couldn't update that setting.");
+    } catch (error) {
+      setSectionShown(!value);
+      toast.error(errorMessage(error, "Couldn't update that setting."));
     } finally {
       setIsTogglingSection(false);
     }
   }
 
-  async function handleApproveToggle(review: AdminReview, approved: boolean) {
-    setUpdatingId(review.id);
+  async function setStatus(review: AdminReview, status: Status) {
+    setBusyId(review.id);
     try {
-      const response = await fetch(`/api/reviews/${review.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: approved ? "APPROVED" : "PENDING" }),
-      });
-      if (!response.ok) throw new Error("Failed");
-      toast.success(approved ? "Review approved and now live." : "Review moved back to pending.");
+      await adminRequest(`/api/reviews/${review.id}`, { method: "PATCH", body: { status } });
+      toast.success(
+        status === "APPROVED"
+          ? `${review.clientName}'s review is now live.`
+          : status === "REJECTED"
+            ? "Review rejected. It won't appear on the site."
+            : "Review moved to pending. It is no longer on the site."
+      );
       router.refresh();
-    } catch {
-      toast.error("Couldn't update that review.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't update that review."));
     } finally {
-      setUpdatingId(null);
+      setBusyId(null);
     }
   }
 
   async function handleDelete(review: AdminReview) {
     const ok = await confirm({
-      title: `Delete review from ${review.clientName}?`,
-      description: "This can't be undone.",
-      confirmLabel: "Delete",
+      title: `Delete ${review.clientName}'s review?`,
+      description: "It's removed permanently. To just hide it, reject it instead.",
+      confirmLabel: "Delete review",
       danger: true,
     });
     if (!ok) return;
 
-    setDeletingId(review.id);
+    setBusyId(review.id);
     try {
-      const response = await fetch(`/api/reviews/${review.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed");
+      await adminRequest(`/api/reviews/${review.id}`, { method: "DELETE" });
       toast.success("Review deleted.");
       router.refresh();
-    } catch {
-      toast.error("Couldn't delete that review.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't delete that review."));
     } finally {
-      setDeletingId(null);
+      setBusyId(null);
     }
   }
 
-  const filtered = useMemo(
-    () => (filter === "ALL" ? reviews : reviews.filter((r) => r.status === filter)),
-    [reviews, filter]
+  const counts = useMemo(
+    () => ({
+      ALL: reviews.length,
+      PENDING: pendingCount,
+      APPROVED: reviews.filter((r) => r.status === "APPROVED").length,
+      REJECTED: reviews.filter((r) => r.status === "REJECTED").length,
+    }),
+    [reviews, pendingCount]
   );
+  const filtered = filter === "ALL" ? reviews : reviews.filter((r) => r.status === filter);
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Reviews</h1>
-        <p className="mt-1 text-sm text-foreground/60">
-          Approve reviews to publish them, or hide the whole section.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Portfolio"
+        title="Reviews"
+        description="Client reviews arrive as pending. Approve them to publish, or reject to keep them off the site."
+      />
 
-      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-semibold">Share this link with clients</h3>
-          <p className="mt-1 text-sm text-foreground/60">
-            Anyone with this link can leave a review — it goes to Pending until you approve it.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <code className="max-w-[220px] truncate rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs sm:max-w-[280px]">
-            {reviewLink}
-          </code>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-primary-dark px-3.5 py-2 text-xs font-medium text-white shadow-md shadow-primary/25 transition hover:opacity-90"
-          >
-            {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {isCopied ? "Copied" : "Copy"}
-          </button>
-        </div>
-      </div>
-
-      <div className="glass-panel flex items-center justify-between gap-4 rounded-2xl p-5">
-        <div>
-          <h3 className="font-semibold">Show Reviews Section on public site</h3>
-          <p className="mt-1 text-sm text-foreground/60">
-            Turning this off hides the entire reviews section sitewide, regardless of individual
-            approvals.
-          </p>
-        </div>
-        <Switch checked={reviewsSectionShown} onChange={handleSectionToggle} disabled={isTogglingSection} />
-      </div>
-
-      {reviews.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition",
-                filter === f
-                  ? "bg-gradient-to-r from-primary to-primary-dark text-white"
-                  : "border border-border-subtle text-foreground/60 hover:border-primary/40 hover:text-foreground"
-              )}
-            >
-              {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
-              <span className="ml-1.5 opacity-70">
-                {f === "ALL" ? reviews.length : reviews.filter((r) => r.status === f).length}
-              </span>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel className="flex flex-col gap-4 p-5">
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight">Collect reviews</h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Send this link to clients. Anything submitted waits here until you approve it.
+            </p>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-xl border border-line bg-white/[0.02] px-3 py-2.5 font-mono text-xs text-fg/85">
+              {reviewLink}
+            </code>
+            <button type="button" onClick={handleCopyLink} className={buttonClass("secondary", "sm", "shrink-0")}>
+              {isCopied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+              {isCopied ? "Copied" : "Copy"}
             </button>
-          ))}
-        </div>
-      )}
+          </div>
+        </Panel>
+
+        <Panel className="flex items-start justify-between gap-4 p-5">
+          <div>
+            <h2 id="reviews-visibility" className="text-sm font-semibold tracking-tight">
+              Show reviews on the site
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Off hides every review sitewide (home, case studies and /reviews), whatever their status.
+            </p>
+            <p className="mt-3">
+              <StatusPill tone={sectionShown ? "success" : "neutral"}>{sectionShown ? "Visible" : "Hidden"}</StatusPill>
+            </p>
+          </div>
+          <Switch
+            checked={sectionShown}
+            onChange={handleSectionToggle}
+            disabled={isTogglingSection}
+            label="Show reviews on the site"
+          />
+        </Panel>
+      </div>
 
       {reviews.length === 0 ? (
-        <div className="glass-panel rounded-2xl p-8 text-center text-foreground/60">
-          No reviews submitted yet.
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="glass-panel rounded-2xl p-8 text-center text-foreground/60">
-          No reviews in this category.
-        </div>
+        <EmptyState
+          icon={<Star className="h-5 w-5" />}
+          title="No reviews yet"
+          description="Share your review link with a client. Their review shows up here for approval."
+          action={
+            <button type="button" onClick={handleCopyLink} className={buttonClass("primary", "sm")}>
+              Copy review link
+            </button>
+          }
+        />
       ) : (
-        <div className="flex flex-col gap-4">
-          {filtered.map((review, index) => (
-            <ReviewRow
-              key={review.id}
-              review={review}
-              index={index}
-              isUpdating={updatingId === review.id}
-              isDeleting={deletingId === review.id}
-              onApproveToggle={(value) => handleApproveToggle(review, value)}
-              onDelete={() => handleDelete(review)}
-            />
-          ))}
-        </div>
+        <>
+          <Segmented
+            label="Filter reviews"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "PENDING", label: "Pending", count: counts.PENDING },
+              { value: "APPROVED", label: "Live", count: counts.APPROVED },
+              { value: "REJECTED", label: "Rejected", count: counts.REJECTED },
+              { value: "ALL", label: "All", count: counts.ALL },
+            ]}
+          />
+
+          {filtered.length === 0 ? (
+            <p className="rounded-2xl border border-line px-5 py-12 text-center text-sm text-muted">
+              {filter === "PENDING" ? "Nothing waiting for approval. You're all caught up." : "No reviews here."}
+            </p>
+          ) : (
+            <ul className="grid gap-4 md:grid-cols-2">
+              {filtered.map((review) => {
+                const busy = busyId === review.id;
+                return (
+                  <Panel as="li" key={review.id} className="flex flex-col">
+                    <div className="flex flex-1 flex-col gap-4 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <StatusPill tone={STATUS[review.status].tone}>{STATUS[review.status].label}</StatusPill>
+                        <span className="font-mono text-xs tracking-[0.15em] text-accent-bright" aria-label={`Rated ${review.rating} out of 5`}>
+                          {"★".repeat(review.rating)}
+                          <span className="text-faint">{"★".repeat(5 - review.rating)}</span>
+                        </span>
+                      </div>
+                      <blockquote className="whitespace-pre-line text-pretty text-sm leading-relaxed text-fg/85">
+                        &ldquo;{review.message.trim()}&rdquo;
+                      </blockquote>
+                      <div className="mt-auto flex items-center gap-3">
+                        <span
+                          aria-hidden
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong bg-raised-2 text-xs font-medium text-muted"
+                        >
+                          {review.clientName.replace(/[^\p{L}]/gu, "").charAt(0).toUpperCase() || "·"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{review.clientName}</p>
+                          <p className="truncate text-xs text-faint">
+                            {review.position ? `${review.position} · ` : ""}
+                            {formatDate(review.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+                      {review.status !== "APPROVED" && (
+                        <button type="button" disabled={busy} onClick={() => setStatus(review, "APPROVED")} className={buttonClass("primary", "sm")}>
+                          <Check className="h-4 w-4" aria-hidden />
+                          Approve
+                        </button>
+                      )}
+                      {review.status === "PENDING" && (
+                        <button type="button" disabled={busy} onClick={() => setStatus(review, "REJECTED")} className={buttonClass("secondary", "sm")}>
+                          <X className="h-4 w-4" aria-hidden />
+                          Reject
+                        </button>
+                      )}
+                      {review.status === "APPROVED" && (
+                        <button type="button" disabled={busy} onClick={() => setStatus(review, "PENDING")} className={buttonClass("secondary", "sm")}>
+                          <X className="h-4 w-4" aria-hidden />
+                          Unpublish
+                        </button>
+                      )}
+                      {review.status === "REJECTED" && (
+                        <button type="button" disabled={busy} onClick={() => setStatus(review, "PENDING")} className={buttonClass("ghost", "sm", "!px-3")}>
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                          Back to pending
+                        </button>
+                      )}
+                      <IconButton
+                        label={`Delete review from ${review.clientName}`}
+                        tone="danger"
+                        disabled={busy}
+                        onClick={() => handleDelete(review)}
+                        className="ml-auto"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </IconButton>
+                    </div>
+                  </Panel>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-function ReviewRow({
-  review,
-  index,
-  isUpdating,
-  isDeleting,
-  onApproveToggle,
-  onDelete,
-}: {
-  review: AdminReview;
-  index: number;
-  isUpdating: boolean;
-  isDeleting: boolean;
-  onApproveToggle: (value: boolean) => void;
-  onDelete: () => void;
-}) {
-  const { onMouseMove, onMouseLeave, spotlightStyle } = useSpotlight();
-  const isApproved = review.status === "APPROVED";
-
-  return (
-    <Reveal
-      delay={Math.min(index, 6) * 40}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      className="glass-panel relative flex flex-col gap-3 overflow-hidden rounded-2xl p-5 sm:flex-row sm:items-start sm:justify-between"
-    >
-      <div className="pointer-events-none absolute inset-0" style={spotlightStyle} />
-      <div className="flex-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-semibold">
-            {review.clientName}
-            {review.position && (
-              <span className="ml-1.5 font-normal text-foreground/60">— {review.position}</span>
-            )}
-          </h3>
-          <StarRating value={review.rating} />
-          <span
-            className={clsx(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              isApproved
-                ? "bg-emerald-500/10 text-emerald-600"
-                : review.status === "REJECTED"
-                  ? "bg-red-500/10 text-red-500"
-                  : "bg-amber-500/10 text-amber-600"
-            )}
-          >
-            {review.status}
-          </span>
-        </div>
-        <p className="mt-2 text-sm text-foreground/70">&ldquo;{review.message}&rdquo;</p>
-        <p className="mt-1 text-xs text-foreground/50">
-          {new Date(review.createdAt).toLocaleDateString("en-US", { dateStyle: "medium" })}
-        </p>
-      </div>
-
-      <div className="relative z-10 flex shrink-0 items-center gap-4">
-        <label className="flex items-center gap-2 text-sm font-medium">
-          Approved
-          <Switch checked={isApproved} onChange={onApproveToggle} disabled={isUpdating} />
-        </label>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
-          aria-label={`Delete review from ${review.clientName}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    </Reveal>
   );
 }

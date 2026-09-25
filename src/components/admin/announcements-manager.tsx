@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { clsx } from "clsx";
-import { Reveal } from "@/components/reveal";
-import { useSpotlight } from "@/lib/use-spotlight";
+import { Megaphone, Pencil, Plus, Trash2 } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
 import { useToast } from "@/components/admin/toast-provider";
 import { useConfirm } from "@/components/admin/confirm-dialog";
-import {
-  AnnouncementFormModal,
-  type AnnouncementFormValues,
-} from "@/components/admin/announcement-form-modal";
+import { AnnouncementFormModal, type AnnouncementFormValues } from "@/components/admin/announcement-form-modal";
+import { EmptyState, IconButton, PageHeader, StatusPill, Switch, formatDate } from "@/components/admin/ui";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
 
 export type AdminAnnouncement = {
   id: string;
@@ -27,7 +24,7 @@ export function AnnouncementsManager({ announcements }: { announcements: AdminAn
   const confirm = useConfirm();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingValues, setEditingValues] = useState<AnnouncementFormValues | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   function openCreateForm() {
     setEditingValues(null);
@@ -45,73 +42,122 @@ export function AnnouncementsManager({ announcements }: { announcements: AdminAn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  function openEditForm(announcement: AdminAnnouncement) {
-    setEditingValues({
-      id: announcement.id,
-      message: announcement.message,
-      isActive: announcement.isActive,
-    });
-    setIsFormOpen(true);
+  async function toggleActive(announcement: AdminAnnouncement, isActive: boolean) {
+    setBusyId(announcement.id);
+    try {
+      await adminRequest(`/api/announcements/${announcement.id}`, { method: "PATCH", body: { isActive } });
+      toast.success(isActive ? "Announcement activated." : "Announcement turned off.");
+      router.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't update that announcement."));
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function handleDelete(announcement: AdminAnnouncement) {
     const ok = await confirm({
       title: "Delete this announcement?",
-      description: "It will be removed from the site banner immediately.",
+      description: "If it's showing, the site banner disappears immediately.",
       confirmLabel: "Delete",
       danger: true,
     });
     if (!ok) return;
 
-    setDeletingId(announcement.id);
+    setBusyId(announcement.id);
     try {
-      const response = await fetch(`/api/announcements/${announcement.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed");
+      await adminRequest(`/api/announcements/${announcement.id}`, { method: "DELETE" });
       toast.success("Announcement deleted.");
       router.refresh();
-    } catch {
-      toast.error("Couldn't delete that announcement.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't delete that announcement."));
     } finally {
-      setDeletingId(null);
+      setBusyId(null);
     }
   }
 
+  // The site banner shows only the newest active announcement (list is
+  // already newest-first), so mark which one visitors actually see.
+  const liveId = announcements.find((a) => a.isActive)?.id;
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Announcements</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Manage the sitewide announcement banner.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-primary/25 transition hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          New Announcement
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Site"
+        title="Announcements"
+        description="The slim banner above the site navigation. Only the newest active announcement is shown."
+        actions={
+          <button type="button" onClick={openCreateForm} className={buttonClass("primary", "sm")}>
+            <Plus className="h-4 w-4" aria-hidden />
+            New announcement
+          </button>
+        }
+      />
 
       {announcements.length === 0 ? (
-        <div className="glass-panel rounded-2xl p-8 text-center text-foreground/60">
-          No announcements yet.
-        </div>
+        <EmptyState
+          icon={<Megaphone className="h-5 w-5" />}
+          title="No announcements"
+          description="Use the banner for availability, openings or news. Nothing shows on the site until you add one."
+          action={
+            <button type="button" onClick={openCreateForm} className={buttonClass("primary", "sm")}>
+              Write your first announcement →
+            </button>
+          }
+        />
       ) : (
-        <div className="flex flex-col gap-3">
-          {announcements.map((announcement, index) => (
-            <AnnouncementRow
-              key={announcement.id}
-              announcement={announcement}
-              index={index}
-              isDeleting={deletingId === announcement.id}
-              onEdit={() => openEditForm(announcement)}
-              onDelete={() => handleDelete(announcement)}
-            />
-          ))}
-        </div>
+        <ul className="overflow-hidden rounded-2xl border border-line bg-raised">
+          {announcements.map((announcement) => {
+            const busy = busyId === announcement.id;
+            return (
+              <li
+                key={announcement.id}
+                className="flex flex-col gap-4 border-b border-line px-5 py-4 transition-colors last:border-b-0 hover:bg-white/[0.02] sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {announcement.id === liveId ? (
+                      <StatusPill tone="success">On site now</StatusPill>
+                    ) : announcement.isActive ? (
+                      <StatusPill tone="neutral">Active · superseded</StatusPill>
+                    ) : (
+                      <StatusPill tone="neutral" dot={false}>
+                        Off
+                      </StatusPill>
+                    )}
+                    <span className="text-xs text-faint">{formatDate(announcement.createdAt)}</span>
+                  </div>
+                  <p className="mt-2 text-pretty text-sm leading-relaxed text-fg/90">{announcement.message}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <label className="flex items-center gap-2 text-xs text-muted">
+                    <Switch
+                      checked={announcement.isActive}
+                      onChange={(value) => toggleActive(announcement, value)}
+                      disabled={busy}
+                      label="Active"
+                    />
+                    <span className="sm:sr-only">Active</span>
+                  </label>
+                  <div className="flex gap-1.5">
+                    <IconButton
+                      label="Edit announcement"
+                      onClick={() => {
+                        setEditingValues({ id: announcement.id, message: announcement.message, isActive: announcement.isActive });
+                        setIsFormOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </IconButton>
+                    <IconButton label="Delete announcement" tone="danger" disabled={busy} onClick={() => handleDelete(announcement)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconButton>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <AnnouncementFormModal
@@ -125,70 +171,5 @@ export function AnnouncementsManager({ announcements }: { announcements: AdminAn
         }}
       />
     </div>
-  );
-}
-
-function AnnouncementRow({
-  announcement,
-  index,
-  isDeleting,
-  onEdit,
-  onDelete,
-}: {
-  announcement: AdminAnnouncement;
-  index: number;
-  isDeleting: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const { onMouseMove, onMouseLeave, spotlightStyle } = useSpotlight();
-
-  return (
-    <Reveal
-      delay={Math.min(index, 6) * 40}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      className="glass-panel relative flex items-start justify-between gap-4 overflow-hidden rounded-2xl p-5"
-    >
-      <div className="pointer-events-none absolute inset-0" style={spotlightStyle} />
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span
-            className={clsx(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              announcement.isActive
-                ? "bg-emerald-500/10 text-emerald-600"
-                : "bg-foreground/10 text-foreground/60"
-            )}
-          >
-            {announcement.isActive ? "Active" : "Inactive"}
-          </span>
-          <span className="text-xs text-foreground/50">
-            {new Date(announcement.createdAt).toLocaleDateString("en-US", { dateStyle: "medium" })}
-          </span>
-        </div>
-        <p className="mt-2 text-sm text-foreground/80">{announcement.message}</p>
-      </div>
-
-      <div className="relative z-10 flex shrink-0 gap-2">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle transition hover:border-primary/40 hover:text-primary"
-          aria-label="Edit announcement"
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
-          aria-label="Delete announcement"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    </Reveal>
   );
 }

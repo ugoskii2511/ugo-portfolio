@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
+import { Field } from "@/components/admin/ui";
 
 function safeRedirectTarget(target: string | undefined): string {
   if (target && target.startsWith("/admin") && !target.startsWith("//")) {
@@ -15,8 +17,12 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const emailId = useId();
+  const passwordId = useId();
+  const errorId = useId();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -30,7 +36,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(data?.error ?? "Invalid email or password");
@@ -45,53 +51,55 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   }
 
   return (
-    <div className="glass-panel w-full max-w-sm rounded-2xl p-8">
-      <div className="mb-6 flex flex-col items-center gap-3 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark text-white">
-          <Lock className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold">Admin Login</h1>
-          <p className="mt-1 text-sm text-foreground/60">Sign in to manage your site</p>
-        </div>
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5" aria-describedby={errorMessage ? errorId : undefined}>
+      <Field label="Email" htmlFor={emailId}>
+        <input
+          id={emailId}
+          required
+          type="email"
+          autoComplete="username"
+          autoFocus
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="field"
+          aria-invalid={Boolean(errorMessage)}
+        />
+      </Field>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Email</span>
+      <Field label="Password" htmlFor={passwordId}>
+        <div className="relative">
           <input
+            id={passwordId}
             required
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Password</span>
-          <input
-            required
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+            className="field !pr-12"
+            aria-invalid={Boolean(errorMessage)}
           />
-        </label>
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-faint transition hover:text-fg"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </Field>
 
-        {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+      {errorMessage && (
+        <p id={errorId} role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300">
+          {errorMessage}
+        </p>
+      )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:opacity-60"
-        >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-          Sign In
-        </button>
-      </form>
-    </div>
+      <button type="submit" disabled={isSubmitting} className={buttonClass("primary", "md", "mt-1 w-full")}>
+        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+        {isSubmitting ? "Signing in…" : "Sign in"}
+      </button>
+    </form>
   );
 }

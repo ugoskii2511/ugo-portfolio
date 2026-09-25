@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ImageUp, Loader2, X } from "lucide-react";
+import { useId, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { clsx } from "clsx";
+import { ImageUp, Loader2, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/admin/toast-provider";
+import { AdminModal, ModalFormFooter } from "@/components/admin/modal";
+import { Field, Switch } from "@/components/admin/ui";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
 
 export type ProjectFormValues = {
   id?: string;
@@ -11,7 +14,7 @@ export type ProjectFormValues = {
   summary: string;
   liveUrl: string;
   imageUrl: string;
-  techStack: string;
+  techStack: string[];
   featured: boolean;
   order: number;
 };
@@ -21,10 +24,85 @@ const EMPTY_VALUES: ProjectFormValues = {
   summary: "",
   liveUrl: "",
   imageUrl: "",
-  techStack: "",
+  techStack: [],
   featured: false,
   order: 0,
 };
+
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_BYTES = 4 * 1024 * 1024;
+const MAX_TECH = 20;
+
+function checkUrl(value: string): string | undefined {
+  if (!value.trim()) return undefined;
+  return /^https?:\/\/\S+\.\S+/i.test(value.trim()) ? undefined : "Use a full link starting with https://";
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="flex flex-col gap-4 border-t border-line pt-5 first:border-t-0 first:pt-0">
+      <legend className="label-mono float-left mb-1 w-full !text-[0.62rem]">{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+/// Comma/Enter adds a chip, Backspace on an empty input removes the last.
+/// Same `techStack: string[]` payload the API has always taken.
+function TechInput({ id, value, onChange }: { id: string; value: string[]; onChange: (value: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+
+  function commit(raw: string) {
+    const additions = raw
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .filter((t) => !value.some((existing) => existing.toLowerCase() === t.toLowerCase()));
+    if (additions.length) onChange([...value, ...additions].slice(0, MAX_TECH));
+    setDraft("");
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      commit(draft);
+    } else if (event.key === "Backspace" && !draft && value.length) {
+      onChange(value.slice(0, -1));
+    }
+  }
+
+  return (
+    <div className="field flex min-h-11 flex-wrap items-center gap-1.5 !py-1.5 focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(61,107,255,0.2)]">
+      {value.map((tech) => (
+        <span key={tech} className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-white/[0.05] py-0.5 pl-2 pr-1 font-mono text-xs">
+          {tech}
+          <button
+            type="button"
+            onClick={() => onChange(value.filter((t) => t !== tech))}
+            aria-label={`Remove ${tech}`}
+            className="flex h-5 w-5 items-center justify-center rounded text-faint hover:bg-white/10 hover:text-fg"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        id={id}
+        value={draft}
+        onChange={(event) => {
+          // Pasting "A, B, C" adds all three.
+          if (event.target.value.includes(",")) commit(event.target.value);
+          else setDraft(event.target.value);
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => draft && commit(draft)}
+        placeholder={value.length ? "" : "Next.js, Tailwind CSS, PostgreSQL"}
+        disabled={value.length >= MAX_TECH}
+        className="min-w-[8rem] flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-faint"
+      />
+    </div>
+  );
+}
 
 export function ProjectFormModal({
   isOpen,
@@ -39,258 +117,249 @@ export function ProjectFormModal({
 }) {
   const [values, setValues] = useState<ProjectFormValues>(initialValues ?? EMPTY_VALUES);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const formId = useId();
+  const ids = { name: useId(), summary: useId(), live: useId(), image: useId(), tech: useId(), order: useId(), featured: useId() };
 
   const isEditing = Boolean(initialValues?.id);
+  const set = <K extends keyof ProjectFormValues>(key: K, value: ProjectFormValues[K]) =>
+    setValues((v) => ({ ...v, [key]: value }));
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
+  async function upload(file: File) {
+    if (!ACCEPTED.includes(file.type)) {
+      toast.error("Use a JPG, PNG, WebP or GIF image.");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      toast.error("That image is over 4MB. Compress it and try again.");
+      return;
+    }
     setIsUploading(true);
-    setErrorMessage("");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-
       const response = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error ?? "Upload failed. Please try again.");
-      }
-
-      setValues((v) => ({ ...v, imageUrl: data.url }));
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error ?? "Upload failed. Please try again.");
+      set("imageUrl", data.url);
+      setFieldErrors((e) => ({ ...e, imageUrl: undefined }));
       toast.success("Image uploaded.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Upload failed.";
-      setErrorMessage(message);
-      toast.error(message);
+      toast.error(errorMessage(error, "Upload failed."));
     } finally {
       setIsUploading(false);
     }
   }
 
+  function onDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) upload(file);
+  }
+
   function resetAndClose() {
     setValues(EMPTY_VALUES);
-    setErrorMessage("");
+    setFormError("");
+    setFieldErrors({});
     onClose();
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const errors = { liveUrl: checkUrl(values.liveUrl), imageUrl: checkUrl(values.imageUrl) };
+    setFieldErrors(errors);
+    if (errors.liveUrl || errors.imageUrl) return;
+
     setIsSubmitting(true);
-    setErrorMessage("");
-
-    const payload = {
-      name: values.name,
-      summary: values.summary,
-      liveUrl: values.liveUrl,
-      imageUrl: values.imageUrl,
-      techStack: values.techStack
-        .split(",")
-        .map((tech) => tech.trim())
-        .filter(Boolean),
-      featured: values.featured,
-      order: values.order,
-    };
-
+    setFormError("");
     try {
-      const response = await fetch(
-        isEditing ? `/api/projects/${initialValues!.id}` : "/api/projects",
-        {
-          method: isEditing ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data?.error ?? "Something went wrong.");
-      }
-
+      await adminRequest(isEditing ? `/api/projects/${initialValues!.id}` : "/api/projects", {
+        method: isEditing ? "PATCH" : "POST",
+        body: {
+          name: values.name,
+          summary: values.summary,
+          liveUrl: values.liveUrl.trim(),
+          imageUrl: values.imageUrl.trim(),
+          techStack: values.techStack,
+          featured: values.featured,
+          order: values.order,
+        },
+      });
       onSaved(isEditing);
       resetAndClose();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+      setFormError(errorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div className="absolute inset-0 bg-slate-950/60" onClick={resetAndClose} />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            className="glass-panel relative z-10 w-full max-w-lg overflow-y-auto rounded-2xl p-6 sm:p-8"
-            style={{ maxHeight: "90vh" }}
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+    <AdminModal
+      isOpen={isOpen}
+      onClose={resetAndClose}
+      size="lg"
+      title={isEditing ? "Edit project" : "Add project"}
+      description={isEditing ? "Changes go live on your portfolio as soon as you save." : "It appears on /work as soon as you save."}
+      footer={
+        <ModalFormFooter
+          formId={formId}
+          onCancel={resetAndClose}
+          submitLabel={isEditing ? "Save changes" : "Add project"}
+          isSubmitting={isSubmitting}
+          error={formError}
+        />
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <FormSection title="Basics">
+          <Field label="Project name" htmlFor={ids.name} count={[values.name.length, 150]}>
+            <input id={ids.name} required maxLength={150} value={values.name} onChange={(e) => set("name", e.target.value)} className="field" />
+          </Field>
+          <Field
+            label="Summary"
+            htmlFor={ids.summary}
+            count={[values.summary.length, 1000]}
+            hint="The first sentence becomes the one-line description on cards. Blank lines split paragraphs."
           >
-            <button
-              type="button"
-              onClick={resetAndClose}
-              aria-label="Close"
-              className="absolute right-4 top-4 rounded-full p-1.5 text-foreground/60 transition hover:bg-primary-soft hover:text-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <textarea
+              id={ids.summary}
+              required
+              rows={5}
+              maxLength={1000}
+              value={values.summary}
+              onChange={(e) => set("summary", e.target.value)}
+              className="field resize-y"
+            />
+          </Field>
+        </FormSection>
 
-            <h3 className="mb-4 text-xl font-semibold">
-              {isEditing ? "Edit Project" : "Add Project"}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Project Name</span>
-                <input
-                  required
-                  value={values.name}
-                  onChange={(event) => setValues((v) => ({ ...v, name: event.target.value }))}
-                  className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Summary / Bio</span>
-                <textarea
-                  required
-                  rows={3}
-                  value={values.summary}
-                  onChange={(event) => setValues((v) => ({ ...v, summary: event.target.value }))}
-                  className="resize-none rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Live Demo URL</span>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={values.liveUrl}
-                  onChange={(event) => setValues((v) => ({ ...v, liveUrl: event.target.value }))}
-                  className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-                />
-              </label>
-
-              <div className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Cover Image (optional)</span>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+        <FormSection title="Media & links">
+          <div className="grid gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
+            <div className="overflow-hidden rounded-xl border border-line bg-raised-2">
+              {values.imageUrl && !fieldErrors.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={values.imageUrl} alt="Cover preview" className="aspect-[10/16] w-full object-cover object-top" />
+              ) : (
+                <div className="flex aspect-[10/16] items-center justify-center p-3 text-center text-xs text-faint">No image</div>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED.join(",")}
+                className="hidden"
+                tabIndex={-1}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) upload(file);
+                }}
+              />
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={onDrop}
+                className={clsx(
+                  "rounded-xl border border-dashed transition-colors",
+                  isDragging ? "border-accent bg-accent-soft" : "border-line-strong"
+                )}
+              >
                 <button
                   type="button"
                   disabled={isUploading}
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border-subtle px-3.5 py-2.5 text-sm font-medium text-foreground/70 transition hover:border-primary/40 hover:text-primary disabled:opacity-60"
+                  className="flex w-full flex-col items-center gap-1.5 px-4 py-6 text-center text-sm text-muted transition-colors hover:text-fg disabled:opacity-60"
                 >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImageUp className="h-4 w-4" />
-                  )}
-                  {isUploading ? "Uploading..." : "Upload from device"}
+                  {isUploading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <ImageUp className="h-5 w-5" aria-hidden />}
+                  <span className="font-medium text-fg/90">{isUploading ? "Uploading…" : "Upload a screenshot"}</span>
+                  <span className="text-xs text-faint">Click or drop an image · JPG, PNG, WebP, GIF · max 4MB</span>
                 </button>
-
-                {values.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={values.imageUrl}
-                    alt=""
-                    className="mt-1 h-28 w-full rounded-lg object-cover"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                )}
-
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs text-foreground/50">Or paste an image URL directly</span>
+              </div>
+              <Field label="Or image URL" htmlFor={ids.image} error={fieldErrors.imageUrl}>
+                <div className="flex gap-2">
                   <input
+                    id={ids.image}
                     type="url"
-                    placeholder="https://..."
+                    inputMode="url"
+                    placeholder="https://…"
                     value={values.imageUrl}
-                    onChange={(event) =>
-                      setValues((v) => ({ ...v, imageUrl: event.target.value }))
-                    }
-                    className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+                    onChange={(e) => set("imageUrl", e.target.value)}
+                    className="field"
+                    aria-invalid={Boolean(fieldErrors.imageUrl)}
                   />
-                </label>
-                <span className="text-xs text-foreground/50">
-                  Leave blank to use a generated placeholder with your tech stack.
-                </span>
-              </div>
+                  {values.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => set("imageUrl", "")}
+                      aria-label="Remove image"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line text-muted hover:border-red-400/40 hover:text-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </Field>
+            </div>
+          </div>
+          <p className="text-xs text-faint">Portrait phone screenshots work best: the site shows them in a phone frame.</p>
 
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">Tech Stack (comma-separated)</span>
-                <input
-                  placeholder="Next.js, Tailwind CSS, Postgres"
-                  value={values.techStack}
-                  onChange={(event) => setValues((v) => ({ ...v, techStack: event.target.value }))}
-                  className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
+          <Field label="Live site URL" htmlFor={ids.live} error={fieldErrors.liveUrl} hint="Shown as the “Visit live site” link.">
+            <input
+              id={ids.live}
+              type="url"
+              inputMode="url"
+              placeholder="https://example.com"
+              value={values.liveUrl}
+              onChange={(e) => set("liveUrl", e.target.value)}
+              className="field"
+              aria-invalid={Boolean(fieldErrors.liveUrl)}
+            />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Details">
+          <Field label="Tech stack" htmlFor={ids.tech} hint={`Press Enter or comma to add. Up to ${MAX_TECH}.`}>
+            <TechInput id={ids.tech} value={values.techStack} onChange={(v) => set("techStack", v)} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Display order" htmlFor={ids.order} hint="Lower numbers appear first.">
+              <input
+                id={ids.order}
+                type="number"
+                step={1}
+                value={values.order}
+                onChange={(e) => set("order", Number(e.target.value))}
+                className="field"
+              />
+            </Field>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[0.8rem] font-medium text-fg/90" id={`${ids.featured}-label`}>
+                Featured
+              </span>
+              <div className="flex min-h-11 items-center gap-3 rounded-xl border border-line px-3">
+                <Switch
+                  id={ids.featured}
+                  checked={values.featured}
+                  onChange={(v) => set("featured", v)}
+                  label="Featured on the homepage"
                 />
-              </label>
-
-              <div className="flex items-center gap-4">
-                <label className="flex flex-1 flex-col gap-1.5 text-sm">
-                  <span className="font-medium">Display Order</span>
-                  <input
-                    type="number"
-                    value={values.order}
-                    onChange={(event) =>
-                      setValues((v) => ({ ...v, order: Number(event.target.value) }))
-                    }
-                    className="rounded-lg border border-border-subtle bg-surface px-3.5 py-2.5 outline-none ring-primary/40 transition focus:ring-2"
-                  />
-                </label>
-                <label className="flex items-center gap-2 pt-6 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={values.featured}
-                    onChange={(event) =>
-                      setValues((v) => ({ ...v, featured: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[var(--color-primary)]"
-                  />
-                  Featured
-                </label>
+                <span className="text-xs text-muted">{values.featured ? "Shown first in the homepage showcase" : "Ordered after featured projects"}</span>
               </div>
-
-              {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:opacity-60"
-              >
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isEditing ? "Save Changes" : "Add Project"}
-              </button>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            </div>
+          </div>
+        </FormSection>
+      </form>
+    </AdminModal>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { buttonClass } from "@/components/site/button";
 
 export default function AdminError({
   error,
@@ -16,29 +16,20 @@ export default function AdminError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
-      <div className="glass-panel w-full max-w-sm rounded-2xl p-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark text-white">
-          <AlertTriangle className="h-5 w-5" />
-        </div>
-        <h1 className="mt-5 text-lg font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-sm text-foreground/60">
-          An unexpected error occurred loading this page.
+    <div className="flex min-h-[70vh] items-center justify-center p-6">
+      <div className="edge relative w-full max-w-md rounded-[1.4rem] p-8">
+        <p className="label-mono">Something broke</p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight">This page failed to load</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Usually a temporary database or network hiccup. Nothing was changed.
+          {error.digest && <span className="mt-2 block font-mono text-xs text-faint">Ref: {error.digest}</span>}
         </p>
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => unstable_retry()}
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-primary/25 transition hover:opacity-90"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Try Again
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => unstable_retry()} className={buttonClass("primary", "sm")}>
+            Try again
           </button>
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-2 rounded-full border border-border-subtle px-5 py-2.5 text-sm font-medium transition hover:border-primary/40 hover:text-primary"
-          >
-            Dashboard
+          <Link href="/admin" className={buttonClass("secondary", "sm")}>
+            Back to overview
           </Link>
         </div>
       </div>
