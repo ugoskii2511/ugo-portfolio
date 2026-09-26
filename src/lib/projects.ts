@@ -40,6 +40,32 @@ type ProjectMeta = {
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
+  // Facts from the live app (seed.bianettechltd.com): landing + sign-up
+  // copy, its footer credit, and its response headers (Next.js on Vercel,
+  // Supabase storage, OpenStreetMap tiles, a separate API service).
+  cmuimiubx000004ibc8oyjxxe: {
+    matchName: "Seed",
+    name: "Seed",
+    slug: "seed",
+    category: "Agritech marketplace",
+    lead: "An agritech marketplace connecting farmers, buyers, traders and the wider agricultural community.",
+    caseStudy: {
+      role: "Developer",
+      challenge:
+        "Agriculture runs on many different players (farmers, buyers, traders, suppliers, investors and logistics providers) who rarely meet on one platform, and who don't all read the same language.",
+      solution:
+        "One marketplace where every account chooses its role, location and language, so each person gets the app in their own language from the moment they sign up.",
+      features: [
+        "Six account types: Farmer, Buyer, Trader, Supplier, Agro Investor and Logistics Provider",
+        "The whole app in nine languages: English, French, Portuguese, Arabic, Kiswahili, Naija Pidgin, Hausa, Yorùbá and Igbo",
+        "Language can be changed at any time",
+        "Account verification with a one-time code by email or phone",
+        "Country and state selection for every account",
+        "Map-based features using OpenStreetMap",
+      ],
+      outcome: "Live at seed.bianettechltd.com, built for Bia'net Tech.",
+    },
+  },
   "seed-project-2": {
     matchName: "VTU / Airtime & Data Reseller Platform",
     name: "SwiftVTU",
