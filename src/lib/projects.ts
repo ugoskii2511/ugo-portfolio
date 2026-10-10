@@ -40,6 +40,31 @@ type ProjectMeta = {
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
+  // Facts from the live site (plotoneltd.com): rendered page copy, its
+  // routes and forms, the footer link to this portfolio, and its build
+  // (Vite module bundle with React Router, served by Vercel).
+  cmv2tt18d000004l3bbdvc4d7: {
+    matchName: "Plot One",
+    name: "Plot One",
+    slug: "plot-one",
+    category: "Mortgage & real estate finance",
+    lead: "A multi-page website for an Abuja mortgage brokerage, built to turn housing-finance questions into enquiries.",
+    caseStudy: {
+      challenge:
+        "Mortgage brokerage covers a lot of ground: diaspora buyers, first-time buyers, developers and institutions all need different services, and each has questions before they get in touch.",
+      solution:
+        "A seven-page site that gives every audience its own path: a services page laying out each offering, an FAQ answering common mortgage questions, the team and values behind the firm, and a contact page built to capture enquiries.",
+      features: [
+        "Seven routed pages: Home, About, Services, Team, Core Values, FAQs and Contact",
+        "Service breakdowns for diaspora mortgages, mortgage brokerage, training, financial advisory, fund raising and Hectare Magazine",
+        "FAQ accordion covering common mortgage questions",
+        "Contact form with a hidden spam-trap field",
+        "Animated statistics on the homepage",
+        "Click-to-call and a Google Maps link to the Abuja office",
+      ],
+      outcome: "Live at plotoneltd.com.",
+    },
+  },
   // Facts from the live app (seed.bianettechltd.com): landing + sign-up
   // copy, its footer credit, and its response headers (Next.js on Vercel,
   // Supabase storage, OpenStreetMap tiles, a separate API service).
