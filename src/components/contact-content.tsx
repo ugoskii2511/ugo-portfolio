@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Wrap } from "@/components/site/wrap";
 import { ServicesGuarantees } from "@/components/services-guarantees";
 import { useBookingModal } from "@/components/booking-modal";
-import { buildBookingWhatsAppUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
+import { buildWhatsAppChatUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
 
 const NEXT_STEPS = [
   ["You share the idea", "A few lines is enough: what you want to build, and roughly when."],
@@ -64,15 +64,7 @@ export function ContactContent({
 }) {
   const { openBooking } = useBookingModal();
 
-  const whatsappUrl = buildBookingWhatsAppUrl(
-    {
-      name: "there",
-      projectType: "a project",
-      budget: "TBD",
-      details: "I'd like to know more about your services.",
-    },
-    whatsappNumber
-  );
+  const whatsappUrl = buildWhatsAppChatUrl("Hi Ugochukwu, I'd like to talk about a project.", whatsappNumber);
 
   return (
     <section className="relative isolate overflow-hidden pb-24 pt-16 sm:pb-32 sm:pt-24">

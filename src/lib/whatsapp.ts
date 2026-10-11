@@ -23,14 +23,22 @@ export function buildBookingMessage({
   budget,
   details,
 }: BookingWhatsAppInput): string {
-  return `Hello Ugochukwu, my name is ${name}. I want to build a ${projectType} with a budget of ${budget}. Project details: ${details}`;
+  // Labelled lines rather than a sentence template, so any project type
+  // reads naturally ("Buy SwiftVTU (₦350,000)", "E-Commerce Store…").
+  const subject = projectType === "General Inquiry" ? "General enquiry" : projectType;
+  return `Hello Ugochukwu, my name is ${name}.\n\nProject: ${subject}\nBudget: ${budget}\n\n${details}`;
 }
 
 export function buildBookingWhatsAppUrl(
   input: BookingWhatsAppInput,
   whatsappNumberOverride?: string | null
 ): string {
-  const message = buildBookingMessage(input);
+  return buildWhatsAppChatUrl(buildBookingMessage(input), whatsappNumberOverride);
+}
+
+/// A plain chat link with a pre-filled greeting, for "message me" buttons
+/// that aren't attached to a booking form submission.
+export function buildWhatsAppChatUrl(message: string, whatsappNumberOverride?: string | null): string {
   return `https://wa.me/${getWhatsAppNumber(whatsappNumberOverride)}?text=${encodeURIComponent(message)}`;
 }
 

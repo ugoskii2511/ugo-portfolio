@@ -3,7 +3,7 @@ import { FaSnapchat, FaTiktok, FaWhatsapp } from "react-icons/fa6";
 import { Mail } from "lucide-react";
 import { Brand } from "@/components/navbar";
 import { Wrap } from "@/components/site/wrap";
-import { buildBookingWhatsAppUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
+import { buildWhatsAppChatUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
 
 const SITE_LINKS = [
   { href: "/work", label: "Work" },
@@ -30,15 +30,7 @@ export function Footer({
   reviewsVisible: boolean;
 }) {
   const more = reviewsVisible ? MORE_LINKS : MORE_LINKS.filter((link) => link.href !== "/reviews");
-  const whatsappUrl = buildBookingWhatsAppUrl(
-    {
-      name: "there",
-      projectType: "a project",
-      budget: "TBD",
-      details: "I found your portfolio and would like to chat.",
-    },
-    whatsappNumber
-  );
+  const whatsappUrl = buildWhatsAppChatUrl("Hi Ugochukwu, I found your portfolio and would like to chat.", whatsappNumber);
 
   return (
     <footer className="relative border-t border-line">
