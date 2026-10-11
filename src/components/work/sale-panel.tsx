@@ -46,6 +46,12 @@ export function SalePanel({ sale, projectName }: { sale: Sale; projectName: stri
               </li>
             ))}
           </ul>
+          {sale.buyerProvides && (
+            <p className="mt-5 rounded-xl border border-line bg-white/[0.02] px-4 py-3 text-sm leading-relaxed text-muted">
+              <span className="font-medium text-fg/90">Good to know: </span>
+              {sale.buyerProvides}
+            </p>
+          )}
           <div className="mt-8 border-t border-line pt-6">
             <BookButton size="lg" magnetic service={`Buy ${projectName} (${price})`} budget={price}>
               Contact me

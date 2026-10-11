@@ -38,6 +38,8 @@ const CANONICAL: Record<string, string> = {
   lucide: "Lucide",
   prisma: "Prisma",
   vercel: "Vercel",
+  mysql: "MySQL",
+  pwa: "PWA",
 };
 
 export function normalizeTech(raw: string): string {

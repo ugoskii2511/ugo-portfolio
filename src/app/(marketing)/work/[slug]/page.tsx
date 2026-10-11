@@ -12,6 +12,7 @@ import { FinalCta } from "@/components/home/final-cta";
 import { Reveal } from "@/components/reveal";
 import { formatPrice, getShowcaseProjects, type ShowcaseProject } from "@/lib/projects";
 import { SalePanel } from "@/components/work/sale-panel";
+import { SaleFeatures } from "@/components/work/sale-features";
 import { DEFAULT_CONTACT_EMAIL, getSettings, getTestimonials } from "@/lib/content";
 import { SITE_URL } from "@/lib/site";
 
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found) return { title: "Project not found" };
   const { project } = found;
   const description = project.sale
-    ? `${project.name} is for sale for ${formatPrice(project.sale)}: full source code and every third-party service transferred to you. ${project.lead}`
+    ? `${project.name} is for sale for ${formatPrice(project.sale)}: full source code, database and domain included. ${project.lead}`
     : `${project.lead} ${project.category} project by Ugochukwu Chukwu Christian.`;
   return {
     title: project.sale ? `${project.name} for sale: ${formatPrice(project.sale)}` : `${project.name}: ${project.category}`,
@@ -241,38 +242,45 @@ export default async function CaseStudyPage({ params }: Props) {
 
         <Wrap className="py-16 sm:py-24">
           <div className="mx-auto max-w-5xl">
-            {sections.map((section, index) => (
-              <Section key={section.title} index={index + 1} title={section.title}>
-                {section.body}
-              </Section>
-            ))}
+            {project.sale?.groups?.length ? (
+              // A product for sale: grouped features, ending in the buyer call to action.
+              <SaleFeatures sale={project.sale} projectName={project.name} />
+            ) : (
+              <>
+                {sections.map((section, index) => (
+                  <Section key={section.title} index={index + 1} title={section.title}>
+                    {section.body}
+                  </Section>
+                ))}
 
-            {isThin && (
-              <Reveal className="mt-4 flex flex-col gap-5 rounded-[1.25rem] border border-dashed border-line-strong p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-                <p className="text-muted">
-                  The full write-up for this project is in progress. Happy to walk you through it on a call.
-                </p>
-                <BookButton variant="secondary" service="General Inquiry">
-                  Ask about it
-                </BookButton>
-              </Reveal>
+                {isThin && (
+                  <Reveal className="mt-4 flex flex-col gap-5 rounded-[1.25rem] border border-dashed border-line-strong p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                    <p className="text-muted">
+                      The full write-up for this project is in progress. Happy to walk you through it on a call.
+                    </p>
+                    <BookButton variant="secondary" service="General Inquiry">
+                      Ask about it
+                    </BookButton>
+                  </Reveal>
+                )}
+
+                {reviews.length > 0 && (
+                  <div className="mt-16">
+                    <h2 className="label-mono mb-6">From the client</h2>
+                    <Testimonials reviews={reviews} />
+                  </div>
+                )}
+
+                <div className="mt-16 flex flex-wrap gap-3">
+                  {project.liveUrl && (
+                    <LinkButton href={project.liveUrl} arrow="out" aria-label={`Visit ${project.name} (opens in a new tab)`}>
+                      Visit the live site
+                    </LinkButton>
+                  )}
+                  <BookButton variant="secondary">Build something similar</BookButton>
+                </div>
+              </>
             )}
-
-            {reviews.length > 0 && (
-              <div className="mt-16">
-                <h2 className="label-mono mb-6">From the client</h2>
-                <Testimonials reviews={reviews} />
-              </div>
-            )}
-
-            <div className="mt-16 flex flex-wrap gap-3">
-              {project.liveUrl && (
-                <LinkButton href={project.liveUrl} arrow="out" aria-label={`Visit ${project.name} (opens in a new tab)`}>
-                  Visit the live site
-                </LinkButton>
-              )}
-              <BookButton variant="secondary">Build something similar</BookButton>
-            </div>
           </div>
         </Wrap>
 

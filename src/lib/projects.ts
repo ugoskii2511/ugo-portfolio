@@ -29,10 +29,19 @@ export type CaseStudy = {
 
 /// A product offered for sale outright (e.g. a finished platform). Prices
 /// are whole naira.
+export type SaleFeatureGroup = { title: string; intro?: string; items: string[] };
+
 export type Sale = {
   price: number;
   currency: "NGN";
+  /// What the buyer receives on payment.
   includes: string[];
+  /// What the buyer must supply themselves, shown as a note.
+  buyerProvides?: string;
+  /// Grouped feature list for the listing.
+  groups?: SaleFeatureGroup[];
+  /// Closing call to action.
+  whatsappUrl?: string;
 };
 
 export function formatPrice(sale: Sale) {
@@ -109,31 +118,113 @@ const PROJECT_META: Record<string, ProjectMeta> = {
     name: "SwiftVTU",
     slug: "swiftvtu",
     category: "Fintech platform",
-    lead: "A wallet-based VTU platform for airtime, data and bill payments, with automated delivery.",
-    caseStudy: {
-      challenge:
-        "Reselling airtime and data means handling real money at volume: users fund a wallet, expect purchases to land instantly, and need to trust every transaction.",
-      solution:
-        "A SaaS-style platform where users fund a wallet through Paystack and purchases are delivered automatically, with no manual processing in the loop.",
-      features: [
-        "Wallet funding via Paystack",
-        "Automated airtime and data delivery across MTN, Airtel, Glo and 9mobile",
-        "Electricity and cable TV bill payments",
-        "Exam PINs and recharge cards",
-        "Data Ajo pooled savings",
-        "Pay4Me links so anyone can top up a user's wallet",
-        "Event tickets with QR check-in",
-        "A path for users to launch their own branded VTU business",
-      ],
-      outcome: "Live in production at swiftvtu.name.ng.",
-    },
+    lead: "A complete, live VTU platform for Nigeria: automated data, airtime, bills and PINs, Paystack wallets with a dedicated bank account per user, savings and event ticketing, reseller tools and a developer API, on a lightweight PHP + MySQL codebase.",
     sale: {
       price: 350_000,
       currency: "NGN",
       includes: [
-        "The complete source code, yours to keep",
-        "Every third-party service the platform runs on, transferred into your name",
-        "Full ownership: change, rebrand or extend anything you like",
+        "Full source code and database",
+        "The domain and existing setup, ready to keep running",
+        "Freedom to change, rebrand or extend anything you like",
+      ],
+      buyerProvides: "You connect your own VTU API provider, Paystack and SMS accounts.",
+      whatsappUrl: "https://wa.me/2349065606430",
+      groups: [
+        {
+          title: "Platform overview",
+          intro: "A complete VTU and digital-services business, already live and built for the Nigerian market.",
+          items: [
+            "Complete, live VTU (Virtual Top-Up) and digital-services platform",
+            "Custom PHP 8.2 + MySQL codebase with no framework: lightweight, and easy to host on any cPanel or DirectAdmin server",
+            "Responsive Tailwind CSS interface with dark mode",
+            "Installable as a mobile app (PWA) with push notifications",
+            "Live at swiftvtu.name.ng with HTTPS enabled",
+          ],
+        },
+        {
+          title: "Core VTU services",
+          intro: "Every service is automated through an API, with no manual processing.",
+          items: [
+            "Data bundles for MTN, Airtel, Glo and 9mobile",
+            "Airtime top-up on all networks",
+            "Cable TV subscriptions with smartcard verification",
+            "Electricity bill payments with meter verification",
+            "Exam and education PINs",
+            "Recharge card printing",
+            "Betting wallet funding",
+            "Bulk SMS",
+            "Airtime-to-cash conversion",
+          ],
+        },
+        {
+          title: "Wallet & payments",
+          intro: "Several ways for customers to fund, move and spend money, with Paystack doing the heavy lifting.",
+          items: [
+            "Wallet funding through Paystack card payments, credited automatically by webhook",
+            "A dedicated virtual bank account for every user: fund by bank transfer, credited automatically",
+            "Wallet-to-wallet transfers between users",
+            "Withdrawals to bank accounts through Paystack Transfers",
+            "Wallet PIN for large transactions",
+            "“Pay4Me”: let someone else pay for a purchase",
+            "Coupons and cashback rewards",
+            "Daily check-in rewards",
+            "Downloadable transaction receipts",
+          ],
+        },
+        {
+          title: "Savings & extra products",
+          intro: "Products beyond top-ups, giving customers more reasons to come back.",
+          items: [
+            "Savings vault",
+            "Ajo (group/rotating savings)",
+            "Event ticketing: event listings, ticket sales held in escrow, and automatic organiser payouts to their bank",
+            "Social media boosting (SMM panel): followers, likes, views and more",
+          ],
+        },
+        {
+          title: "Business & reseller tools",
+          intro: "Built to grow through resellers and partners, not only direct customers.",
+          items: [
+            "Tiered pricing: Smart Earner, Reseller and API Partner, with in-app tier upgrades",
+            "Reseller panel and personal reseller storefronts (“My Store”)",
+            "White-label option",
+            "Developer API portal, so partners can plug the services into their own apps",
+          ],
+        },
+        {
+          title: "Security & accounts",
+          intro: "The safeguards a platform that handles money needs.",
+          items: [
+            "Registration with email verification, password reset and login-attempt limiting",
+            "Biometric / passkey login (WebAuthn)",
+            "User ban and appeal system",
+            "Terms-of-service acceptance gate",
+          ],
+        },
+        {
+          title: "Support",
+          intro: "Customers can get help without leaving the platform.",
+          items: ["Support ticket system", "AI-powered customer support assistant", "Contact page and WhatsApp support link"],
+        },
+        {
+          title: "Admin panel",
+          intro: "Run the whole business from one dashboard.",
+          items: [
+            "Full admin dashboard: users, transactions, wallet lookups, SMM orders, appeals and statistics",
+            "Data plan pricing and profit management",
+            "Email broadcasts to users",
+            "Coupon management and user tier control",
+          ],
+        },
+        {
+          title: "SEO & marketing",
+          intro: "Set up to be found and shared.",
+          items: [
+            "SEO meta tags and Open Graph social previews",
+            "Auto-generated sitemap and robots.txt",
+            "Professional landing page",
+          ],
+        },
       ],
     },
   },
