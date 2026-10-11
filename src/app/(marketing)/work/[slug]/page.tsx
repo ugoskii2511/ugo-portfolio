@@ -10,7 +10,8 @@ import { StackList } from "@/components/work/stack-list";
 import { Testimonials } from "@/components/home/testimonials";
 import { FinalCta } from "@/components/home/final-cta";
 import { Reveal } from "@/components/reveal";
-import { getShowcaseProjects, type ShowcaseProject } from "@/lib/projects";
+import { formatPrice, getShowcaseProjects, type ShowcaseProject } from "@/lib/projects";
+import { SalePanel } from "@/components/work/sale-panel";
 import { DEFAULT_CONTACT_EMAIL, getSettings, getTestimonials } from "@/lib/content";
 import { SITE_URL } from "@/lib/site";
 
@@ -28,9 +29,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const found = await findProject(slug);
   if (!found) return { title: "Project not found" };
   const { project } = found;
-  const description = `${project.lead} ${project.category} project by Ugochukwu Chukwu Christian.`;
+  const description = project.sale
+    ? `${project.name} is for sale for ${formatPrice(project.sale)}: full source code and every third-party service transferred to you. ${project.lead}`
+    : `${project.lead} ${project.category} project by Ugochukwu Chukwu Christian.`;
   return {
-    title: `${project.name}: ${project.category}`,
+    title: project.sale ? `${project.name} for sale: ${formatPrice(project.sale)}` : `${project.name}: ${project.category}`,
     description,
     alternates: { canonical: `/work/${project.slug}` },
     openGraph: {
@@ -113,6 +116,9 @@ export default async function CaseStudyPage({ params }: Props) {
   const isThin = !project.caseStudy.challenge && !project.caseStudy.solution && !project.caseStudy.features;
 
   const meta: [string, React.ReactNode][] = [
+    ...(project.sale
+      ? ([["Price", <span key="p" className="font-medium text-accent-bright">{formatPrice(project.sale)} · for sale</span>]] as [string, React.ReactNode][])
+      : []),
     ["Type", project.category],
     ...(project.caseStudy.role ? ([["Role", project.caseStudy.role]] as [string, React.ReactNode][]) : []),
     ["Status", <span key="s" className="inline-flex items-center gap-2"><span className="live-dot" aria-hidden />Live</span>],
@@ -143,6 +149,17 @@ export default async function CaseStudyPage({ params }: Props) {
     ...(project.liveUrl ? { sameAs: project.liveUrl } : {}),
     creator: { "@id": `${SITE_URL}/#person` },
     keywords: project.stack.join(", "),
+    ...(project.sale
+      ? {
+          offers: {
+            "@type": "Offer",
+            price: project.sale.price,
+            priceCurrency: project.sale.currency,
+            availability: "https://schema.org/InStock",
+            url: `${SITE_URL}/work/${project.slug}`,
+          },
+        }
+      : {}),
   };
 
   return (
@@ -163,7 +180,10 @@ export default async function CaseStudyPage({ params }: Props) {
             </Link>
             <div className="mt-10 grid gap-10 lg:grid-cols-12 lg:items-end">
               <div className="lg:col-span-8">
-                <p className="label-mono reveal-up">{project.category} · Case study</p>
+                <p className="label-mono reveal-up">
+                  {project.category} · Case study
+                  {project.sale && <span className="text-accent-bright"> · For sale</span>}
+                </p>
                 <h1
                   className="display reveal-up mt-6 text-balance text-[2.9rem] sm:text-7xl lg:text-8xl"
                   style={{ animationDelay: "80ms" }}
@@ -212,6 +232,12 @@ export default async function CaseStudyPage({ params }: Props) {
             </div>
           </div>
         </Wrap>
+
+        {project.sale && (
+          <Wrap className="pt-10 sm:pt-14">
+            <SalePanel sale={project.sale} projectName={project.name} />
+          </Wrap>
+        )}
 
         <Wrap className="py-16 sm:py-24">
           <div className="mx-auto max-w-5xl">

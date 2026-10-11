@@ -9,6 +9,7 @@ import { Magnetic } from "@/components/site/magnetic";
 export function BookButton({
   children,
   service = "General Inquiry",
+  budget,
   variant = "primary",
   size = "md",
   arrow = "out",
@@ -18,6 +19,8 @@ export function BookButton({
 }: {
   children: ReactNode;
   service?: string;
+  /// Pre-fills the budget field, e.g. a fixed purchase price.
+  budget?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
   arrow?: "right" | "out" | false;
@@ -31,7 +34,7 @@ export function BookButton({
       type="button"
       onClick={() => {
         onClick?.();
-        openBooking(service);
+        openBooking(service, { budget });
       }}
       className={buttonClass(variant, size, className)}
     >

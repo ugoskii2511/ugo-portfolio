@@ -27,6 +27,18 @@ export type CaseStudy = {
   outcome?: string;
 };
 
+/// A product offered for sale outright (e.g. a finished platform). Prices
+/// are whole naira.
+export type Sale = {
+  price: number;
+  currency: "NGN";
+  includes: string[];
+};
+
+export function formatPrice(sale: Sale) {
+  return `₦${sale.price.toLocaleString("en-NG")}`;
+}
+
 type ProjectMeta = {
   matchName: string;
   name: string;
@@ -37,6 +49,7 @@ type ProjectMeta = {
   /// surface the client's own words on the case study.
   reviewMatch?: string;
   caseStudy?: CaseStudy;
+  sale?: Sale;
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
@@ -113,6 +126,15 @@ const PROJECT_META: Record<string, ProjectMeta> = {
         "A path for users to launch their own branded VTU business",
       ],
       outcome: "Live in production at swiftvtu.name.ng.",
+    },
+    sale: {
+      price: 350_000,
+      currency: "NGN",
+      includes: [
+        "The complete source code, yours to keep",
+        "Every third-party service the platform runs on, transferred into your name",
+        "Full ownership: change, rebrand or extend anything you like",
+      ],
     },
   },
   "seed-project-3": {
@@ -246,6 +268,7 @@ export type ShowcaseProject = {
   featured: boolean;
   reviewMatch?: string;
   caseStudy: CaseStudy;
+  sale?: Sale;
 };
 
 type ProjectRow = {
@@ -318,6 +341,7 @@ export function toShowcase(project: ProjectRow): Omit<ShowcaseProject, "slug"> &
     featured: project.featured,
     reviewMatch: useMeta ? meta.reviewMatch : undefined,
     caseStudy: (useMeta && meta.caseStudy) || {},
+    sale: useMeta ? meta.sale : undefined,
   };
 }
 

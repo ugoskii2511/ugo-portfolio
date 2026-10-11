@@ -14,7 +14,8 @@ import { trackEvent } from "@/lib/track";
 import type { ServiceCategory } from "@/lib/services-data";
 
 type BookingModalContextValue = {
-  openBooking: (serviceName: string) => void;
+  /// `budget` pre-fills the budget field (e.g. a fixed purchase price).
+  openBooking: (serviceName: string, options?: { budget?: string }) => void;
 };
 
 const BookingModalContext = createContext<BookingModalContextValue | null>(null);
@@ -38,6 +39,10 @@ export function BookingModalProvider({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [projectType, setProjectType] = useState("");
+  // The type the form was opened with. If it isn't one of the listed
+  // services (e.g. "Buy SwiftVTU (₦350,000)"), it gets its own option so the
+  // select can show it.
+  const [presetType, setPresetType] = useState("");
   const [clientName, setClientName] = useState("");
   const [budget, setBudget] = useState("");
   const [details, setDetails] = useState("");
@@ -55,9 +60,11 @@ export function BookingModalProvider({
   }, []);
 
   const openBooking = useCallback(
-    (serviceName: string) => {
+    (serviceName: string, options?: { budget?: string }) => {
       reset();
       setProjectType(serviceName);
+      setPresetType(serviceName);
+      if (options?.budget) setBudget(options.budget);
       setIsOpen(true);
       trackEvent("BOOKING_CLICK", serviceName);
     },
@@ -211,6 +218,11 @@ export function BookingModalProvider({
                       onChange={(event) => setProjectType(event.target.value)}
                       className="field"
                     >
+                      {presetType &&
+                        presetType !== "General Inquiry" &&
+                        !serviceCategories.some((category) => category.services.some((service) => service.title === presetType)) && (
+                          <option value={presetType}>{presetType}</option>
+                        )}
                       <option value="General Inquiry">General Inquiry / Not sure yet</option>
                       {serviceCategories.map((category) => (
                         <optgroup key={category.id} label={category.title}>

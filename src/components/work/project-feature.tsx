@@ -4,6 +4,7 @@ import { Phone } from "@/components/site/phone";
 import { LinkButton } from "@/components/site/button";
 import { StackList } from "@/components/work/stack-list";
 import type { ShowcaseProject } from "@/lib/projects";
+import { SaleBadge } from "@/components/work/sale-badge";
 
 /// One large, editorial project panel. On desktop the panels are sticky, so
 /// as you scroll each one slides up over the last and takes focus.
@@ -60,6 +61,11 @@ export function ProjectFeature({
           <h3 id={`project-${project.slug}`} className="display mt-6 text-balance text-4xl sm:text-5xl lg:text-[3.6rem]">
             {project.name}
           </h3>
+          {project.sale && (
+            <p className="mt-4">
+              <SaleBadge sale={project.sale} />
+            </p>
+          )}
           <p className="mt-5 max-w-md text-pretty leading-relaxed text-muted">{project.lead}</p>
 
           {project.stack.length > 0 && (
