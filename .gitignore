@@ -46,3 +46,8 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Python prospector service (local virtualenv/caches)
+/prospector/.venv/
+__pycache__/
+.pytest_cache/

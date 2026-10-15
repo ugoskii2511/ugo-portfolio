@@ -1,0 +1,9 @@
+[project]
+name = "prospector"
+version = "0.1.0"
+description = "Client acquisition engine for ugobuildsweb.name.ng (discovery, audits, scoring, outreach drafts, CRM jobs)."
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

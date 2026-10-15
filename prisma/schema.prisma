@@ -179,3 +179,244 @@ model AnalyticsEvent {
 
   @@index([type, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Client acquisition (prospecting CRM). Written by the Python "prospector"
+// service (prospector/) and read by the admin dashboard. Prisma owns the
+// schema and migrations for both.
+// ---------------------------------------------------------------------------
+
+enum ProspectStage {
+  DISCOVERED
+  NEEDS_REVIEW
+  QUALIFIED
+  READY_FOR_OUTREACH
+  CONTACTED
+  REPLIED
+  CONSULTATION_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+  DO_NOT_CONTACT
+}
+
+/// Evidence-based website status. NONE_FOUND only ever means "not found in
+/// the sources checked", never "this business has no website".
+enum WebsiteStatus {
+  UNCHECKED
+  VERIFIED
+  FOUND_UNVERIFIED
+  NONE_FOUND
+  UNCERTAIN
+}
+
+/// A business that might need my services, from a public source, a manual
+/// entry, a CSV import or an inbound request.
+model Prospect {
+  id                 String        @id @default(cuid())
+  businessName       String
+  /// Lowercased, punctuation-free name; with city, the fuzzy dedupe key.
+  normalizedName     String
+  category           String?
+  industry           String?
+  address            String?
+  city               String?
+  state              String?
+  country            String        @default("Nigeria")
+  latitude           Float?
+  longitude          Float?
+  website            String?
+  websiteDomain      String?
+  websiteStatus      WebsiteStatus @default(UNCHECKED)
+  websiteCheckedAt   DateTime?
+  websiteEvidence    String?
+  /// Public business contact channels only, as published by the source.
+  email              String?
+  phone              String?
+  /// "openstreetmap" | "manual" | "csv" | "inbound"
+  source             String
+  sourceRef          String?
+  sourceUrl          String?
+  sourceLicense      String?
+  discoveredAt       DateTime      @default(now())
+  discoveryJobId     String?
+  stage              ProspectStage @default(DISCOVERED)
+  /// 0 normal, 1 high, 2 urgent
+  priority           Int           @default(0)
+  score              Int?
+  scoreBreakdown     Json?
+  scoreOverride      Int?
+  qualification      String?
+  recommendedService String?
+  nextAction         String?
+  scoredAt           DateTime?
+  followUpAt         DateTime?
+  proposalAmount     Int?
+  wonAmount          Int?
+  outcomeReason      String?
+  doNotContact       Boolean       @default(false)
+  archivedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  audits    ProspectAudit[]
+  notes     ProspectNote[]
+  events    ProspectEvent[]
+  drafts    OutreachDraft[]
+  followUps FollowUpTask[]
+
+  @@unique([source, sourceRef])
+  @@index([websiteDomain])
+  @@index([normalizedName, city])
+  @@index([stage])
+  @@index([score])
+  @@index([followUpAt])
+  @@index([discoveredAt])
+}
+
+/// One website audit run. `findings` holds per-check results with evidence;
+/// checks that couldn't run are recorded as "unavailable", never guessed.
+model ProspectAudit {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  url        String
+  finalUrl   String?
+  /// "completed" | "partial" | "failed"
+  status     String
+  httpStatus Int?
+  responseMs Int?
+  pageBytes  Int?
+  findings   Json
+  pagespeed  Json?
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([prospectId, createdAt])
+}
+
+model ProspectNote {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([prospectId, createdAt])
+}
+
+/// Interaction history: outreach logged, replies, calls, stage changes…
+model ProspectEvent {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  type       String
+  channel    String?
+  summary    String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([prospectId, createdAt])
+  @@index([type, createdAt])
+}
+
+model OutreachDraft {
+  id         String    @id @default(cuid())
+  prospectId String
+  prospect   Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  template   String
+  /// "email" | "whatsapp" | "phone" | "other"
+  channel    String
+  subject    String?
+  body       String
+  /// "draft" | "approved" | "rejected" | "sent"
+  status     String    @default("draft")
+  /// The verified facts the draft was built from.
+  facts      Json?
+  approvedAt DateTime?
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([prospectId])
+}
+
+model FollowUpTask {
+  id          String    @id @default(cuid())
+  prospectId  String
+  prospect    Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  title       String
+  dueAt       DateTime
+  /// "open" | "done" | "skipped"
+  status      String    @default("open")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, dueAt])
+  @@index([prospectId])
+}
+
+/// Background work (discovery, audits, scoring…) processed in bounded steps
+/// with a lease, so serverless invocations never overlap on the same job.
+model ProspectJob {
+  id             String    @id @default(cuid())
+  type           String
+  /// "queued" | "running" | "done" | "failed" | "cancelled"
+  status         String    @default("queued")
+  params         Json
+  state          Json?
+  total          Int?
+  processed      Int       @default(0)
+  attempts       Int       @default(0)
+  leaseUntil     DateTime?
+  idempotencyKey String?   @unique
+  error          String?
+  log            Json?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// Never-contact list, checked before any outreach is drafted or logged.
+model Suppression {
+  id        String   @id @default(cuid())
+  /// "email" | "phone" | "domain"
+  kind      String
+  value     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([kind, value])
+}
+
+model ProspectorSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-provider daily request counters for usage limits.
+model UsageCounter {
+  provider String
+  day      DateTime @db.Date
+  count    Int      @default(0)
+
+  @@id([provider, day])
+}
+
+/// Record of admin actions on prospect data (edits, exports, deletions).
+model AdminAuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
