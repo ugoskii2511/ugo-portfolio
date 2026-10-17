@@ -62,6 +62,33 @@ type ProjectMeta = {
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
+  // Facts from the live site (rev-canon-arinze-bookstore.vercel.app):
+  // rendered page copy, its routes and forms, the footer link to this
+  // portfolio, and its build (Next.js + Tailwind, Vercel Blob media).
+  cmvcp8fwu000a06kzir765c1g: {
+    matchName: "Nzechukwu's Books",
+    name: "Nzechukwu's Books",
+    slug: "nzechukwus-books",
+    category: "Author bookstore",
+    lead: "The official online bookstore for an Abuja priest and author, selling e-books through Selar and physical copies on WhatsApp.",
+    caseStudy: {
+      challenge:
+        "Rev'd Canon Arinze Agbionu's books are sold two ways: e-books through Selar, and physical copies delivered to readers. Readers needed one place to find every title and buy it the right way, without the site ever taking card payments.",
+      solution:
+        "A bookstore built around the catalogue. Every book has its own page with a full description. Readers can browse by category or search. Each title shows the right way to buy it: a Selar link for e-books, or a WhatsApp order form for physical copies.",
+      features: [
+        "A catalogue of 10 books, with category filters and search",
+        "A full page for each book, showing its description, format and price",
+        "E-book purchases handed off to Selar",
+        "Physical-copy orders sent to WhatsApp with the book, total, name and delivery address already written out",
+        "A cart, plus newsletter sign-up and unsubscribe",
+        "A contact form with a hidden spam-trap field",
+        "About, FAQ, delivery, privacy and terms pages",
+        "A password-protected admin area",
+      ],
+      outcome: "Live at rev-canon-arinze-bookstore.vercel.app.",
+    },
+  },
   // Facts from the live site (plotoneltd.com): rendered page copy, its
   // routes and forms, the footer link to this portfolio, and its build
   // (Vite module bundle with React Router, served by Vercel).
