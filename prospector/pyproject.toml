@@ -3,6 +3,14 @@ name = "prospector"
 version = "0.1.0"
 description = "Client acquisition engine for ugobuildsweb.name.ng (discovery, audits, scoring, outreach drafts, CRM jobs)."
 requires-python = ">=3.12"
+# Keep in sync with requirements.txt (Vercel may install from either).
+dependencies = [
+    "fastapi==0.118.0",
+    "httpx==0.28.1",
+    "psycopg[binary]==3.2.10",
+    "beautifulsoup4==4.13.5",
+    "pydantic==2.11.9",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
