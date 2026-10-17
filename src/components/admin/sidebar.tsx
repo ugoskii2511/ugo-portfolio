@@ -9,7 +9,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUpRight,
   Bell,
+  Columns3,
   FileText,
+  Gauge,
+  Radar,
+  Send,
+  SlidersHorizontal,
+  Target,
+  Users,
   FolderKanban,
   HelpCircle,
   Inbox,
@@ -42,6 +49,18 @@ const NAV: { heading: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
       { href: "/admin/bookings", label: "Leads", icon: Inbox, badge: "leads" },
+    ],
+  },
+  {
+    heading: "Clients",
+    items: [
+      { href: "/admin/clients", label: "Client pipeline", icon: Target, exact: true },
+      { href: "/admin/clients/find", label: "Find clients", icon: Radar },
+      { href: "/admin/clients/prospects", label: "Prospects", icon: Users },
+      { href: "/admin/clients/pipeline", label: "Pipeline board", icon: Columns3 },
+      { href: "/admin/clients/audits", label: "Website audits", icon: Gauge },
+      { href: "/admin/clients/outreach", label: "Outreach", icon: Send },
+      { href: "/admin/clients/settings", label: "Prospector settings", icon: SlidersHorizontal },
     ],
   },
   {

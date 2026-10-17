@@ -159,3 +159,17 @@ def test_retention_archives_old_uncontacted_prospects(conn, settings):
     crm.apply_retention(conn, s)
     conn.commit()
     assert conn.execute('SELECT "archivedAt" FROM "Prospect" WHERE id = %s', (pid,)).fetchone()["archivedAt"] is not None
+
+
+def test_inbound_request_is_high_priority_and_never_left_in_discovered(conn, settings):
+    from app.intake import inbound_audit_request
+
+    # A well-built site scores low, but the visitor asked for a review.
+    result = inbound_audit_request(conn, settings, {"name": "QA", "businessName": f"{TAG} Inbound Co", "email": f"{TAG}@example.com", "website": None})
+    conn.commit()
+    row = conn.execute('SELECT source, stage, priority FROM "Prospect" WHERE id = %s', (result["id"],)).fetchone()
+    assert row["source"] == "inbound"
+    assert row["priority"] >= 1
+    assert row["stage"] in ("NEEDS_REVIEW", "QUALIFIED")
+    events = [r["type"] for r in conn.execute('SELECT type FROM "ProspectEvent" WHERE "prospectId" = %s', (result["id"],)).fetchall()]
+    assert "inbound_request" in events

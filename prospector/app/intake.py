@@ -6,6 +6,7 @@ import csv
 import io
 
 from app import crm
+from app.db import execute
 from app.prospects import log_event, upsert
 
 MAX_CSV_BYTES = 1_000_000
@@ -101,5 +102,8 @@ def inbound_audit_request(conn, settings: dict, data: dict) -> dict:
         f"Requested a free website review ({data.get('name') or 'visitor'})",
         data={k: data.get(k) for k in ("name", "email", "phone", "website", "message")},
     )
+    # Inbound interest is the warmest lead there is: flag it high priority
+    # (also when the business was already in the CRM from discovery).
+    execute(conn, 'UPDATE "Prospect" SET priority = GREATEST(priority, 1), "updatedAt" = now() WHERE id = %s', (prospect_id,))
     crm.rescore(conn, settings, prospect_id)
     return {"outcome": outcome, "id": prospect_id}

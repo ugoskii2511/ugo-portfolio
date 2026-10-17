@@ -60,6 +60,12 @@ def rescore(conn, settings: dict, prospect_id: str) -> dict:
     # move a lead backwards once a human has progressed it.
     if stage in ("DISCOVERED", "NEEDS_REVIEW", "QUALIFIED"):
         stage = {"qualified": "QUALIFIED", "review": "NEEDS_REVIEW"}.get(result["qualification"], "DISCOVERED")
+        # Someone who asked us for a review always gets looked at, whatever
+        # their website scores.
+        if stage == "DISCOVERED" and not prospect.get("doNotContact") and fetch_one(
+            conn, 'SELECT 1 AS hit FROM "ProspectEvent" WHERE "prospectId" = %s AND type = %s LIMIT 1', (prospect_id, "inbound_request")
+        ):
+            stage = "NEEDS_REVIEW"
     execute(
         conn,
         'UPDATE "Prospect" SET score = %s, "scoreBreakdown" = %s, qualification = %s, "recommendedService" = %s, '

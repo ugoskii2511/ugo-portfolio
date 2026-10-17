@@ -1,0 +1,87 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { clsx } from "clsx";
+import { Send } from "lucide-react";
+import { prisma } from "@/lib/db";
+import { EmptyState, PageHeader } from "@/components/admin/ui";
+import { DraftCard } from "@/components/admin/clients/prospect-workspace";
+import { prospectorConfigured } from "@/lib/prospector";
+
+export const metadata: Metadata = { title: "Outreach" };
+
+const TABS = [
+  { value: "draft", label: "To approve" },
+  { value: "approved", label: "Approved, not sent" },
+  { value: "sent", label: "Sent" },
+  { value: "rejected", label: "Rejected" },
+] as const;
+
+export default async function OutreachPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const { status: raw } = await searchParams;
+  const status = TABS.some((t) => t.value === raw) ? raw! : "draft";
+  const [counts, drafts] = await Promise.all([
+    prisma.outreachDraft.groupBy({ by: ["status"], _count: true }),
+    prisma.outreachDraft.findMany({
+      where: { status },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      include: { prospect: { select: { id: true, businessName: true, email: true, phone: true, doNotContact: true } } },
+    }),
+  ]);
+  const count = Object.fromEntries(counts.map((c) => [c.status, c._count])) as Record<string, number>;
+  const configured = prospectorConfigured();
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow="Clients"
+        title="Outreach"
+        description="Nothing is sent automatically. Approve a draft, send it yourself by email or WhatsApp, then log it so follow-ups are scheduled."
+      />
+      <nav aria-label="Draft status" className="inline-flex max-w-full flex-wrap gap-1 self-start rounded-full border border-line bg-white/[0.02] p-1">
+        {TABS.map((tab) => (
+          <Link
+            key={tab.value}
+            href={`/admin/clients/outreach?status=${tab.value}`}
+            aria-current={tab.value === status ? "page" : undefined}
+            className={clsx(
+              "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium",
+              tab.value === status ? "bg-white/[0.09] text-fg" : "text-muted hover:text-fg"
+            )}
+          >
+            {tab.label}
+            <span className="font-mono text-[0.65rem] text-faint">{count[tab.value] ?? 0}</span>
+          </Link>
+        ))}
+      </nav>
+      {drafts.length === 0 ? (
+        <EmptyState
+          icon={<Send className="h-5 w-5" />}
+          title="Nothing here"
+          description="Open a prospect and generate a draft. It's written only from facts recorded for that business."
+        />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {drafts.map((d) => (
+            <DraftCard
+              key={`${d.id}-${d.updatedAt.toISOString()}`}
+              showProspect
+              configured={configured}
+              prospect={d.prospect}
+              draft={{
+                id: d.id,
+                template: d.template,
+                channel: d.channel,
+                subject: d.subject,
+                body: d.body,
+                status: d.status,
+                createdAt: d.createdAt.toISOString(),
+                sentAt: d.sentAt?.toISOString() ?? null,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

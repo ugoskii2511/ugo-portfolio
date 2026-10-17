@@ -10,6 +10,7 @@ error recorded; it retries on the next step until MAX_ATTEMPTS.
 from __future__ import annotations
 
 import time
+import psycopg
 import traceback
 from datetime import datetime, timezone
 
@@ -79,12 +80,12 @@ def validate_params(job_type: str, params: dict, settings: dict) -> dict:
 
 
 def create_job(conn, job_type: str, params: dict, *, created_by: str | None, idempotency_key: str | None = None) -> dict:
-    settings = load_settings(conn)
-    clean = validate_params(job_type, params, settings)
     if idempotency_key:
         existing = fetch_one(conn, 'SELECT * FROM "ProspectJob" WHERE "idempotencyKey" = %s', (idempotency_key,))
         if existing:
             return existing
+    settings = load_settings(conn)
+    clean = validate_params(job_type, params, settings)
     job_id = new_id()
     try:
         execute(
@@ -136,6 +137,28 @@ def _save(conn, job: dict, *, status: str, state: dict, processed: int, total: i
 
 def run_step(job_id: str, *, budget_s: float = STEP_BUDGET_S) -> dict:
     """Run one bounded step. Returns the updated job row (or why it didn't run)."""
+    try:
+        return _run_step(job_id, budget_s)
+    except psycopg.OperationalError as exc:
+        # The database connection dropped mid-step, so nothing from this step
+        # was committed. Release the lease on a fresh connection and let the
+        # job retry from its last saved state.
+        print("job step lost its database connection", job_id, exc)
+        with connect() as conn:
+            execute(
+                conn,
+                'UPDATE "ProspectJob" SET status = CASE WHEN attempts + 1 >= %s THEN \'failed\' ELSE \'queued\' END, '
+                '"leaseUntil" = NULL, attempts = attempts + 1, error = %s WHERE id = %s AND status = %s',
+                (MAX_ATTEMPTS, "Database connection dropped; will retry.", job_id, "running"),
+            )
+            conn.commit()
+            row = fetch_one(conn, 'SELECT * FROM "ProspectJob" WHERE id = %s', (job_id,))
+        if not row:
+            raise JobError("Job not found") from exc
+        return row
+
+
+def _run_step(job_id: str, budget_s: float) -> dict:
     deadline = time.monotonic() + budget_s
     with connect() as conn:
         job = claim(conn, job_id)
@@ -176,12 +199,15 @@ def run_step(job_id: str, *, budget_s: float = STEP_BUDGET_S) -> dict:
             log = _append_log({**job, "log": log}, message)
         _save(conn, job, status="done" if result["done"] else "queued", state=result["state"],
               processed=result["processed"], total=result.get("total"), log=log, error=None, attempts=0)
+        children = []
         if result["done"]:
             for follow_up in result.get("then", []):
-                create_job(conn, follow_up["type"], follow_up["params"], created_by=job.get("createdBy"),
-                           idempotency_key=f"{job['id']}:{follow_up['type']}")
+                child = create_job(conn, follow_up["type"], follow_up["params"], created_by=job.get("createdBy"),
+                                   idempotency_key=f"{job['id']}:{follow_up['type']}")
+                children.append({"id": child["id"], "type": child["type"]})
             conn.commit()
-        return fetch_one(conn, 'SELECT * FROM "ProspectJob" WHERE id = %s', (job_id,))
+        row = fetch_one(conn, 'SELECT * FROM "ProspectJob" WHERE id = %s', (job_id,))
+        return {**row, "children": children}
 
 
 def cancel(conn, job_id: str) -> None:
@@ -320,7 +346,7 @@ def _domain(url):
 def handle_audit(conn, job, state, settings, deadline):
     if "ids" not in state:
         state["ids"] = _select_ids(conn, job, {
-            "unchecked": 'SELECT p.id FROM "Prospect" p WHERE p."archivedAt" IS NULL AND p.website IS NOT NULL AND p."websiteStatus" IN (\'VERIFIED\',\'FOUND_UNVERIFIED\') AND NOT EXISTS (SELECT 1 FROM "ProspectAudit" a WHERE a."prospectId" = p.id) ORDER BY p.score DESC NULLS LAST',
+            "unchecked": 'SELECT p.id FROM "Prospect" p WHERE p."archivedAt" IS NULL AND p."doNotContact" = false AND p.website IS NOT NULL AND p."websiteStatus" IN (\'VERIFIED\',\'FOUND_UNVERIFIED\') AND NOT EXISTS (SELECT 1 FROM "ProspectAudit" a WHERE a."prospectId" = p.id) ORDER BY p.score DESC NULLS LAST',
         }, job["params"]["limit"])
         state["index"] = 0
         state["phase"] = "html"

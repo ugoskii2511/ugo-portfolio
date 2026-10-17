@@ -48,12 +48,19 @@ def connect() -> Iterator[psycopg.Connection]:
         prepare_threshold=None,
         connect_timeout=10,
         autocommit=False,
+        # Job steps can hold a connection while fetching websites; keepalives
+        # stop NAT gateways and poolers dropping it as idle.
+        keepalives=1,
+        keepalives_idle=15,
+        keepalives_interval=5,
+        keepalives_count=3,
     )
     try:
         yield conn
         conn.commit()
     except Exception:
-        conn.rollback()
+        if not conn.broken:
+            conn.rollback()
         raise
     finally:
         conn.close()

@@ -17,7 +17,7 @@ type Issues = { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
 
 export async function adminRequest<T = unknown>(
   url: string,
-  init: { method: "POST" | "PATCH" | "DELETE"; body?: unknown }
+  init: { method: "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown }
 ): Promise<T> {
   let response: Response;
   try {

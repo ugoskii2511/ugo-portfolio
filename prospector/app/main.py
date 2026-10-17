@@ -237,8 +237,22 @@ def inbound(body: InboundIn, _actor: str = Depends(require_admin)):
 @app.get("/settings")
 def get_settings(_actor: str = Depends(require_admin)):
     with connect() as conn:
+        from app.config import config
+
         settings = load_settings(conn)
-        return {"settings": settings, "usage": usage_today(conn, settings), "keys": list(DEFAULTS)}
+        return {
+            "settings": settings,
+            "usage": usage_today(conn, settings),
+            "keys": list(DEFAULTS),
+            "integrations": {
+                "database": True,
+                "openstreetmap": True,
+                "pagespeedKey": bool(config.pagespeed_api_key),
+                "cron": bool(config.cron_secret),
+                "ai": settings["ai"].get("provider", "none"),
+                "email": "manual",
+            },
+        }
 
 
 class SettingIn(BaseModel):
@@ -264,11 +278,35 @@ def _validate_setting(key: str, value: Any) -> None:
         if not isinstance(value, list) or len(value) > 20:
             raise HTTPException(status_code=400, detail="Schedules must be a list (max 20)")
         for schedule in value:
+            if not isinstance(schedule, dict):
+                raise HTTPException(status_code=400, detail="Invalid schedule")
             try:
                 with connect() as conn:
                     jobs.validate_params("discover", schedule.get("params") or {}, load_settings(conn))
             except jobs.JobError as exc:
                 raise HTTPException(status_code=400, detail=f"Schedule “{schedule.get('name', '')}”: {exc}") from exc
+    elif key == "scoring":
+        if not isinstance(value, dict):
+            raise HTTPException(status_code=400, detail="Invalid scoring settings")
+        weights = value.get("weights", {})
+        if not isinstance(weights, dict) or any(not isinstance(v, (int, float)) or abs(v) > 100 for v in weights.values()):
+            raise HTTPException(status_code=400, detail="Weights must be numbers between -100 and 100")
+        for name in ("qualified_threshold", "review_threshold", "recent_contact_days"):
+            if name in value and (not isinstance(value[name], (int, float)) or not 0 <= value[name] <= 365):
+                raise HTTPException(status_code=400, detail=f"{name} must be a number from 0 to 365")
+        for name in ("target_industries", "target_locations"):
+            if name in value and (not isinstance(value[name], list) or len(value[name]) > 50 or any(not isinstance(v, str) or len(v) > 80 for v in value[name])):
+                raise HTTPException(status_code=400, detail=f"{name} must be a list of short names")
+    elif key == "followups":
+        days = value.get("schedule_days") if isinstance(value, dict) else None
+        if not isinstance(days, list) or len(days) > 5 or any(not isinstance(d, int) or not 1 <= d <= 90 for d in days):
+            raise HTTPException(status_code=400, detail="Follow-up days must be up to 5 whole numbers from 1 to 90")
+    elif key == "retention":
+        if not isinstance(value, dict) or any(not isinstance(v, int) or not 0 <= v <= 3650 for v in value.values()):
+            raise HTTPException(status_code=400, detail="Retention periods must be whole days from 0 to 3650")
+    elif key == "outreach":
+        if not isinstance(value, dict) or any(not isinstance(v, str) or len(v) > 200 for v in value.values()):
+            raise HTTPException(status_code=400, detail="Signature fields must be short text")
     elif not isinstance(value, (dict, list)):
         raise HTTPException(status_code=400, detail="Invalid value")
 
