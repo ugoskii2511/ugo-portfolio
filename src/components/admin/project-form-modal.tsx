@@ -17,17 +17,6 @@ export type ProjectFormValues = {
   techStack: string[];
   featured: boolean;
   order: number;
-  published: boolean;
-  category: string;
-  lead: string;
-  challenge: string;
-  solution: string;
-  features: string[];
-  galleryUrls: string[];
-  pricingPackage: string;
-  /// Whole naira as typed; empty = use the package range.
-  priceMinNaira: string;
-  priceMaxNaira: string;
 };
 
 const EMPTY_VALUES: ProjectFormValues = {
@@ -38,27 +27,7 @@ const EMPTY_VALUES: ProjectFormValues = {
   techStack: [],
   featured: false,
   order: 0,
-  published: true,
-  category: "",
-  lead: "",
-  challenge: "",
-  solution: "",
-  features: [],
-  galleryUrls: [],
-  pricingPackage: "",
-  priceMinNaira: "",
-  priceMaxNaira: "",
 };
-
-const PRICE_FLOOR = 150_000;
-const MAX_GALLERY = 8;
-
-/// "₦150,000", "150000", "150,000" → 150000 (whole naira); null if empty.
-function parseNaira(text: string): number | null | "invalid" {
-  const t = text.replace(/[₦,\s]/g, "");
-  if (!t) return null;
-  return /^\d{1,10}$/.test(t) ? Number(t) : "invalid";
-}
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -138,13 +107,11 @@ function TechInput({ id, value, onChange }: { id: string; value: string[]; onCha
 export function ProjectFormModal({
   isOpen,
   initialValues,
-  packages,
   onClose,
   onSaved,
 }: {
   isOpen: boolean;
   initialValues: ProjectFormValues | null;
-  packages: { key: string; label: string; range: string }[];
   onClose: () => void;
   onSaved: (wasEditing: boolean) => void;
 }) {
@@ -157,42 +124,7 @@ export function ProjectFormModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const formId = useId();
-  const ids = { name: useId(), summary: useId(), live: useId(), image: useId(), tech: useId(), order: useId(), featured: useId(), extra: useId() };
-  const galleryInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
-
-  async function uploadGallery(files: FileList) {
-    const room = MAX_GALLERY - values.galleryUrls.length;
-    const picked = [...files].slice(0, room);
-    if (!picked.length) {
-      toast.error(`Up to ${MAX_GALLERY} extra screenshots.`);
-      return;
-    }
-    setIsUploadingGallery(true);
-    try {
-      const urls: string[] = [];
-      for (const file of picked) {
-        if (!ACCEPTED.includes(file.type) || file.size > MAX_BYTES) {
-          toast.error(`Skipped ${file.name}: use a JPG, PNG, WebP or GIF under 4MB.`);
-          continue;
-        }
-        const formData = new FormData();
-        formData.append("file", file);
-        const response = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(data?.error ?? "Upload failed. Please try again.");
-        urls.push(data.url);
-      }
-      if (urls.length) {
-        setValues((v) => ({ ...v, galleryUrls: [...v.galleryUrls, ...urls].slice(0, MAX_GALLERY) }));
-        toast.success(urls.length === 1 ? "Screenshot added." : `${urls.length} screenshots added.`);
-      }
-    } catch (error) {
-      toast.error(errorMessage(error, "Upload failed."));
-    } finally {
-      setIsUploadingGallery(false);
-    }
-  }
+  const ids = { name: useId(), summary: useId(), live: useId(), image: useId(), tech: useId(), order: useId(), featured: useId() };
 
   const isEditing = Boolean(initialValues?.id);
   const set = <K extends keyof ProjectFormValues>(key: K, value: ProjectFormValues[K]) =>
@@ -240,21 +172,9 @@ export function ProjectFormModal({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const min = parseNaira(values.priceMinNaira);
-    const max = parseNaira(values.priceMaxNaira);
-    const priceError =
-      min === "invalid" || max === "invalid"
-        ? "Enter whole naira amounts, e.g. 150000"
-        : min !== null && min < PRICE_FLOOR
-          ? "Estimates can't go below ₦150,000"
-          : max !== null && min === null
-            ? "Set a starting price before a maximum"
-            : max !== null && min !== null && max < min
-              ? "The maximum must be at least the starting price"
-              : undefined;
-    const errors = { liveUrl: checkUrl(values.liveUrl), imageUrl: checkUrl(values.imageUrl), price: priceError };
+    const errors = { liveUrl: checkUrl(values.liveUrl), imageUrl: checkUrl(values.imageUrl) };
     setFieldErrors(errors);
-    if (errors.liveUrl || errors.imageUrl || errors.price) return;
+    if (errors.liveUrl || errors.imageUrl) return;
 
     setIsSubmitting(true);
     setFormError("");
@@ -269,16 +189,6 @@ export function ProjectFormModal({
           techStack: values.techStack,
           featured: values.featured,
           order: values.order,
-          published: values.published,
-          category: values.category.trim() || null,
-          lead: values.lead.trim() || null,
-          challenge: values.challenge.trim() || null,
-          solution: values.solution.trim() || null,
-          features: values.features.map((f) => f.trim()).filter(Boolean),
-          galleryUrls: values.galleryUrls,
-          pricingPackage: values.pricingPackage || null,
-          priceMinNaira: min,
-          priceMaxNaira: max,
         },
       });
       onSaved(isEditing);
@@ -416,105 +326,6 @@ export function ProjectFormModal({
               aria-invalid={Boolean(fieldErrors.liveUrl)}
             />
           </Field>
-        </FormSection>
-
-        <FormSection title="Showcase">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5">
-            <div>
-              <p className="text-sm font-medium">Show on the public site</p>
-              <p className="text-xs text-muted">{values.published ? "Visible on /work and the homepage" : "Hidden: only you can see it here"}</p>
-            </div>
-            <Switch checked={values.published} onChange={(v) => set("published", v)} label="Show on the public site" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Category (optional)" htmlFor={`${ids.extra}-cat`} hint="e.g. School, E-commerce, Restaurant.">
-              <input id={`${ids.extra}-cat`} maxLength={80} value={values.category} onChange={(e) => set("category", e.target.value)} className="field" />
-            </Field>
-            <Field label="Short description (optional)" htmlFor={`${ids.extra}-lead`} count={[values.lead.length, 300]} hint="One sentence for cards. Empty uses the summary.">
-              <input id={`${ids.extra}-lead`} maxLength={300} value={values.lead} onChange={(e) => set("lead", e.target.value)} className="field" />
-            </Field>
-          </div>
-          <Field label="The problem it solves (optional)" htmlFor={`${ids.extra}-problem`} count={[values.challenge.length, 2000]}>
-            <textarea id={`${ids.extra}-problem`} rows={3} maxLength={2000} value={values.challenge} onChange={(e) => set("challenge", e.target.value)} className="field resize-y" />
-          </Field>
-          <Field label="The solution (optional)" htmlFor={`${ids.extra}-solution`} count={[values.solution.length, 2000]}>
-            <textarea id={`${ids.extra}-solution`} rows={3} maxLength={2000} value={values.solution} onChange={(e) => set("solution", e.target.value)} className="field resize-y" />
-          </Field>
-          <Field label="Key features (optional)" htmlFor={`${ids.extra}-features`} hint="One per line, up to 20. The first three show on the card.">
-            <textarea
-              id={`${ids.extra}-features`}
-              rows={5}
-              value={values.features.join("\n")}
-              onChange={(e) => set("features", e.target.value.split("\n").slice(0, 20))}
-              className="field resize-y"
-            />
-          </Field>
-          <div className="flex flex-col gap-2">
-            <p className="text-[0.8rem] font-medium text-fg/90">Extra screenshots (optional)</p>
-            <ul className="flex flex-wrap gap-2">
-              {values.galleryUrls.map((url, i) => (
-                <li key={url} className="relative w-20 overflow-hidden rounded-lg border border-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Screenshot ${i + 1}`} className="aspect-[10/16] w-full object-cover object-top" />
-                  <button
-                    type="button"
-                    onClick={() => set("galleryUrls", values.galleryUrls.filter((u) => u !== url))}
-                    aria-label={`Remove screenshot ${i + 1}`}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white"
-                  >
-                    <X className="h-3 w-3" aria-hidden />
-                  </button>
-                </li>
-              ))}
-              {values.galleryUrls.length < MAX_GALLERY && (
-                <li>
-                  <button
-                    type="button"
-                    disabled={isUploadingGallery}
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="flex aspect-[10/16] w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong text-xs text-muted hover:text-fg disabled:opacity-60"
-                  >
-                    {isUploadingGallery ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ImageUp className="h-4 w-4" aria-hidden />}
-                    Add
-                  </button>
-                </li>
-              )}
-            </ul>
-            <input
-              ref={galleryInputRef}
-              type="file"
-              multiple
-              accept={ACCEPTED.join(",")}
-              className="hidden"
-              tabIndex={-1}
-              onChange={(e) => {
-                if (e.target.files?.length) uploadGallery(e.target.files);
-                e.target.value = "";
-              }}
-            />
-            <p className="text-xs text-faint">Only screenshots of this actual project. Shown in the case study.</p>
-          </div>
-        </FormSection>
-
-        <FormSection title="Price estimate">
-          <Field label="Comparable package" htmlFor={`${ids.extra}-pkg`} hint="Sets the estimate shown for a similar project. Ranges are edited on Admin → Pricing.">
-            <select id={`${ids.extra}-pkg`} value={values.pricingPackage} onChange={(e) => set("pricingPackage", e.target.value)} className="field">
-              <option value="">No estimate shown</option>
-              {packages.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.label} ({p.range})
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Custom estimate from ₦ (optional)" htmlFor={`${ids.extra}-min`} error={fieldErrors.price} hint="Overrides the package range. Minimum ₦150,000.">
-              <input id={`${ids.extra}-min`} inputMode="numeric" placeholder="e.g. 300000" value={values.priceMinNaira} onChange={(e) => set("priceMinNaira", e.target.value)} className="field" aria-invalid={Boolean(fieldErrors.price)} />
-            </Field>
-            <Field label="Custom estimate to ₦ (optional)" htmlFor={`${ids.extra}-max`} hint="Leave empty for “From ₦…”.">
-              <input id={`${ids.extra}-max`} inputMode="numeric" placeholder="e.g. 450000" value={values.priceMaxNaira} onChange={(e) => set("priceMaxNaira", e.target.value)} className="field" />
-            </Field>
-          </div>
         </FormSection>
 
         <FormSection title="Details">

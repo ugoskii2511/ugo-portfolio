@@ -22,24 +22,11 @@ export type AdminProject = {
   publicName: string;
   category: string;
   slug: string;
-  published: boolean;
-  rawCategory: string | null;
-  lead: string | null;
-  challenge: string | null;
-  solution: string | null;
-  features: string[];
-  galleryUrls: string[];
-  pricingPackage: string | null;
-  priceMinNaira: number | null;
-  priceMaxNaira: number | null;
-  estimate: string | null;
 };
-
-export type PackageOption = { key: string; label: string; range: string };
 
 type Filter = "all" | "featured" | "standard";
 
-export function ProjectsManager({ projects, packages }: { projects: AdminProject[]; packages: PackageOption[] }) {
+export function ProjectsManager({ projects }: { projects: AdminProject[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -76,16 +63,6 @@ export function ProjectsManager({ projects, packages }: { projects: AdminProject
       techStack: project.techStack,
       featured: project.featured,
       order: project.order,
-      published: project.published,
-      category: project.rawCategory ?? "",
-      lead: project.lead ?? "",
-      challenge: project.challenge ?? "",
-      solution: project.solution ?? "",
-      features: project.features,
-      galleryUrls: project.galleryUrls,
-      pricingPackage: project.pricingPackage ?? "",
-      priceMinNaira: project.priceMinNaira?.toString() ?? "",
-      priceMaxNaira: project.priceMaxNaira?.toString() ?? "",
     });
     setIsFormOpen(true);
   }
@@ -224,9 +201,7 @@ export function ProjectsManager({ projects, packages }: { projects: AdminProject
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate text-[0.95rem] font-semibold tracking-tight">{project.publicName}</h2>
                       <StatusPill dot={false}>{project.category}</StatusPill>
-                      {!project.published && <StatusPill tone="warning">Hidden</StatusPill>}
                     </div>
-                    {project.estimate && <p className="mt-0.5 text-xs text-muted">Estimate for a similar build: {project.estimate}</p>}
                     {project.publicName !== project.name && (
                       <p className="mt-0.5 truncate font-mono text-[0.68rem] text-faint">Admin name: {project.name}</p>
                     )}
@@ -295,7 +270,6 @@ export function ProjectsManager({ projects, packages }: { projects: AdminProject
         key={editingValues?.id ?? "new"}
         isOpen={isFormOpen}
         initialValues={editingValues}
-        packages={packages}
         onClose={() => setIsFormOpen(false)}
         onSaved={(wasEditing) => {
           toast.success(wasEditing ? "Project updated." : "Project added to your portfolio.");

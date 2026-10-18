@@ -13,7 +13,6 @@ const SITE_LINKS = [
 ];
 
 const MORE_LINKS = [
-  { href: "/pricing", label: "Pricing" },
   { href: "/audit", label: "Free website audit" },
   { href: "/reviews", label: "Client reviews" },
   { href: "/review", label: "Leave a review" },

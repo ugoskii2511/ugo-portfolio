@@ -387,10 +387,6 @@ export type ShowcaseProject = {
   reviewMatch?: string;
   caseStudy: CaseStudy;
   sale?: Sale;
-  /// Extra screenshots of the real project (admin-uploaded).
-  gallery: string[];
-  /// Inputs for the price estimate (see src/lib/pricing.ts).
-  pricing: { pricingPackage: string | null; priceMinNaira: number | null; priceMaxNaira: number | null };
 };
 
 type ProjectRow = {
@@ -401,15 +397,6 @@ type ProjectRow = {
   techStack: string[];
   imageUrl: string | null;
   featured: boolean;
-  category?: string | null;
-  lead?: string | null;
-  challenge?: string | null;
-  solution?: string | null;
-  features?: string[];
-  galleryUrls?: string[];
-  pricingPackage?: string | null;
-  priceMinNaira?: number | null;
-  priceMaxNaira?: number | null;
 };
 
 const EMOJI = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu;
@@ -458,21 +445,12 @@ export function toShowcase(project: ProjectRow): Omit<ShowcaseProject, "slug"> &
   const useMeta = meta && meta.matchName === project.name;
   const name = useMeta ? meta.name : tidyName(project.name);
 
-  // Fields saved in the admin win; the editorial layer above fills gaps.
-  const metaCase: CaseStudy = (useMeta && meta.caseStudy) || {};
-  const caseStudy: CaseStudy = {
-    ...metaCase,
-    ...(project.challenge?.trim() ? { challenge: project.challenge.trim() } : {}),
-    ...(project.solution?.trim() ? { solution: project.solution.trim() } : {}),
-    ...(project.features?.length ? { features: project.features } : {}),
-  };
-
   return {
     id: project.id,
     slug: useMeta ? meta.slug : slugify(name) || project.id,
     name,
-    category: project.category?.trim() || (useMeta ? meta.category : "Web project"),
-    lead: project.lead?.trim() || (useMeta ? meta.lead : leadFrom(project.summary)),
+    category: useMeta ? meta.category : "Web project",
+    lead: useMeta ? meta.lead : leadFrom(project.summary),
     summary: stripEmoji(project.summary),
     stack: [...new Set(project.techStack.map(normalizeTech).filter(isShowcaseTech))],
     imageUrl: project.imageUrl,
@@ -480,14 +458,8 @@ export function toShowcase(project: ProjectRow): Omit<ShowcaseProject, "slug"> &
     domain: domainOf(project.liveUrl),
     featured: project.featured,
     reviewMatch: useMeta ? meta.reviewMatch : undefined,
-    caseStudy,
+    caseStudy: (useMeta && meta.caseStudy) || {},
     sale: useMeta ? meta.sale : undefined,
-    gallery: project.galleryUrls ?? [],
-    pricing: {
-      pricingPackage: project.pricingPackage ?? null,
-      priceMinNaira: project.priceMinNaira ?? null,
-      priceMaxNaira: project.priceMaxNaira ?? null,
-    },
   };
 }
 
@@ -507,7 +479,6 @@ function withUniqueSlugs(projects: ShowcaseProject[]): ShowcaseProject[] {
 /// Memoized per request (a case study reads it for metadata and the page).
 export const getShowcaseProjects = cache(async (): Promise<ShowcaseProject[]> => {
   const rows = await prisma.project.findMany({
-    where: { published: true },
     orderBy: [{ featured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
   });
   return withUniqueSlugs(rows.map(toShowcase));

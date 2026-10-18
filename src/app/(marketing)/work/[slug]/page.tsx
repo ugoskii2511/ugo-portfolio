@@ -15,13 +15,6 @@ import { SalePanel } from "@/components/work/sale-panel";
 import { SaleFeatures } from "@/components/work/sale-features";
 import { DEFAULT_CONTACT_EMAIL, getSettings, getTestimonials } from "@/lib/content";
 import { SITE_URL } from "@/lib/site";
-import Image from "next/image";
-import { getPricing } from "@/lib/pricing-server";
-import { inquiryOptions } from "@/lib/showcase";
-import { formatRange, OTHER_COSTS, projectEstimate } from "@/lib/pricing";
-import { CostEstimator } from "@/components/work/cost-estimator";
-import { PricingNotice } from "@/components/work/pricing-notice";
-import { DiscussProjectButton } from "@/components/work/discuss-project";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -73,7 +66,7 @@ function caseStudySections(project: ShowcaseProject) {
     title: "Overview",
     body: <p className="whitespace-pre-line">{project.summary}</p>,
   });
-  if (challenge) sections.push({ title: "The problem", body: <p>{challenge}</p> });
+  if (challenge) sections.push({ title: "The challenge", body: <p>{challenge}</p> });
   if (solution) sections.push({ title: "The solution", body: <p>{solution}</p> });
   if (features?.length) {
     sections.push({
@@ -105,22 +98,6 @@ function caseStudySections(project: ShowcaseProject) {
   if (project.stack.length) {
     sections.push({ title: "Technology", body: <StackList stack={project.stack} /> });
   }
-  if (project.gallery.length) {
-    sections.push({
-      title: "Screenshots",
-      body: (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {project.gallery.map((src, i) => (
-            <li key={src} className="relative aspect-[10/16] overflow-hidden rounded-xl border border-line bg-raised-2">
-              <a href={src} target="_blank" rel="noopener noreferrer" aria-label={`Open screenshot ${i + 1} of ${project.name} full size`}>
-                <Image src={src} alt={`${project.name} screenshot ${i + 1}`} fill sizes="(min-width: 640px) 220px, 45vw" className="object-cover object-top" />
-              </a>
-            </li>
-          ))}
-        </ul>
-      ),
-    });
-  }
   if (outcome) sections.push({ title: "Outcome", body: <p>{outcome}</p> });
   return sections;
 }
@@ -131,9 +108,7 @@ export default async function CaseStudyPage({ params }: Props) {
   if (!found) notFound();
   const { projects, project, next } = found;
 
-  const [settings, pricing] = await Promise.all([getSettings(), getPricing()]);
-  const estimate = projectEstimate(pricing.config, project.pricing);
-  const inquiry = inquiryOptions(pricing);
+  const settings = await getSettings();
   const reviewsVisible = settings?.reviewsSectionShown ?? true;
   const reviews = reviewsVisible
     ? (await getTestimonials(projects)).filter((review) => review.project?.slug === project.slug)
@@ -146,9 +121,6 @@ export default async function CaseStudyPage({ params }: Props) {
       ? ([["Price", <span key="p" className="font-medium text-accent-bright">{formatPrice(project.sale)} · for sale</span>]] as [string, React.ReactNode][])
       : []),
     ["Type", project.category],
-    ...(estimate
-      ? ([["Similar build", <span key="e">{formatRange(estimate.min, estimate.max)} <span className="text-faint">(estimate)</span></span>]] as [string, React.ReactNode][])
-      : []),
     ...(project.caseStudy.role ? ([["Role", project.caseStudy.role]] as [string, React.ReactNode][]) : []),
     ["Status", <span key="s" className="inline-flex items-center gap-2"><span className="live-dot" aria-hidden />Live</span>],
     ...(project.domain && project.liveUrl
@@ -300,68 +272,15 @@ export default async function CaseStudyPage({ params }: Props) {
                 )}
 
                 <div className="mt-16 flex flex-wrap gap-3">
-                  <DiscussProjectButton options={inquiry} projectName={project.name} defaultType={estimate?.label} size="lg" />
                   {project.liveUrl && (
-                    <LinkButton href={project.liveUrl} variant="secondary" size="lg" arrow="out" aria-label={`Visit ${project.name} (opens in a new tab)`}>
+                    <LinkButton href={project.liveUrl} arrow="out" aria-label={`Visit ${project.name} (opens in a new tab)`}>
                       Visit the live site
                     </LinkButton>
                   )}
+                  <BookButton variant="secondary">Build something similar</BookButton>
                 </div>
               </>
             )}
-
-            <section aria-labelledby="cost-title" className="mt-20 border-t border-line pt-12">
-              <p className="label-mono">Estimated cost</p>
-              <h2 id="cost-title" className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-                What a similar project could cost
-              </h2>
-              {estimate ? (
-                <>
-                  <p className="mt-4 max-w-3xl text-pretty text-muted">
-                    A comparable {estimate.label.toLowerCase()} is estimated at <strong className="text-fg">{formatRange(estimate.min, estimate.max)}</strong> for
-                    development.{" "}
-                    {estimate.max === null || estimate.complex
-                      ? "The final figure depends heavily on scope, so this is a starting point for discussion."
-                      : "If your project needs more than a standard build, the price may increase once the requirements are discussed."}
-                  </p>
-                  <div className="mt-8">
-                    <CostEstimator config={pricing.config} estimate={estimate} />
-                  </div>
-                </>
-              ) : (
-                <p className="mt-4 max-w-3xl text-muted">Every project is priced from its requirements. Tell me what you need and I&apos;ll send a proper quotation.</p>
-              )}
-
-              <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-2xl border border-line p-5 sm:p-6">
-                  <h3 className="font-semibold">Hosting and maintenance</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">
-                    The development estimate covers building the agreed scope. Hosting, the domain and ongoing maintenance are separate and
-                    recurring. Some platforms offer free tiers, which can suit small sites but have usage limits and aren&apos;t always right
-                    for production. Maintenance is optional, agreed in writing (what&apos;s covered and how often), and new features or major
-                    changes are quoted separately.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-line p-5 sm:p-6">
-                  <h3 className="font-semibold">Possible extra costs, only if your project needs them</h3>
-                  <ul className="mt-2 grid gap-1 text-sm text-muted sm:grid-cols-2">
-                    {OTHER_COSTS.map((c) => (
-                      <li key={c}>· {c}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <PricingNotice text={pricing.disclaimer} className="mt-8" />
-
-              <div className="mt-8 flex flex-col gap-4 rounded-[1.25rem] border border-accent/30 bg-accent-soft p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-                <div>
-                  <p className="text-lg font-semibold">Want something like {project.name}?</p>
-                  <p className="mt-1 text-sm text-muted">Tell me about your project and get a proper quotation. No commitment.</p>
-                </div>
-                <DiscussProjectButton options={inquiry} projectName={project.name} defaultType={estimate?.label} size="lg" className="shrink-0" />
-              </div>
-            </section>
           </div>
         </Wrap>
 

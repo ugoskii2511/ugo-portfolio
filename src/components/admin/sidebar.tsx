@@ -22,7 +22,6 @@ import {
   Radar,
   Send,
   SlidersHorizontal,
-  Tag,
   Target,
   Users,
   FolderKanban,
@@ -96,7 +95,6 @@ const NAV: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Site",
     items: [
-      { href: "/admin/pricing", label: "Pricing", icon: Tag },
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
       { href: "/admin/content", label: "Site content", icon: FileText },
     ],
