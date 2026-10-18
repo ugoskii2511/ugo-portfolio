@@ -10,7 +10,13 @@ import {
   ArrowUpRight,
   Bell,
   BookOpen,
+  ChartColumn,
   Columns3,
+  Contact,
+  FileChartColumn,
+  Layers,
+  Receipt,
+  Wallet,
   FileText,
   Gauge,
   Radar,
@@ -53,7 +59,18 @@ const NAV: { heading: string; items: NavItem[] }[] = [
     ],
   },
   {
-    heading: "Clients",
+    heading: "Business",
+    items: [
+      { href: "/admin/business", label: "Business overview", icon: ChartColumn, exact: true },
+      { href: "/admin/business/clients", label: "Clients", icon: Contact },
+      { href: "/admin/business/projects", label: "Projects", icon: Layers },
+      { href: "/admin/business/payments", label: "Payments", icon: Wallet },
+      { href: "/admin/business/expenses", label: "Expenses", icon: Receipt },
+      { href: "/admin/business/reports", label: "Reports", icon: FileChartColumn },
+    ],
+  },
+  {
+    heading: "Find clients",
     items: [
       { href: "/admin/clients", label: "Client pipeline", icon: Target, exact: true },
       { href: "/admin/clients/find", label: "Find clients", icon: Radar },
@@ -423,7 +440,7 @@ export function AdminShell({
       {/* Desktop sidebar */}
       <aside
         className={clsx(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-canvas transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-canvas transition-[width] print:!hidden duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:flex",
           collapsed ? "w-[4.75rem]" : "w-64"
         )}
       >
@@ -463,7 +480,7 @@ export function AdminShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-line bg-canvas/80 backdrop-blur-xl backdrop-saturate-150">
+        <header className="sticky top-0 z-40 border-b border-line bg-canvas/80 backdrop-blur-xl backdrop-saturate-150 print:hidden">
           <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
