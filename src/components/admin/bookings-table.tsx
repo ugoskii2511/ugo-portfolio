@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, Check, Copy, Download, Inbox } from "lucide-re
 import { buttonClass } from "@/components/site/button";
 import { EmptyState, SearchInput, StatusPill, formatDate, formatRelative } from "@/components/admin/ui";
 import { useToast } from "@/components/admin/toast-provider";
+import { useHasMounted } from "@/lib/use-has-mounted";
 
 export type AdminBooking = {
   id: string;
@@ -71,6 +72,8 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
   const [mobileDetail, setMobileDetail] = useState(Boolean(initialSelectedId));
   const [copied, setCopied] = useState(false);
   const [now] = useState(() => Date.now());
+  // Full timestamps use the viewer's timezone, so they render after hydration.
+  const mounted = useHasMounted();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -192,7 +195,7 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                 <div className="flex flex-wrap items-center gap-2">
                   {now - new Date(selected.createdAt).getTime() < WEEK_MS && <StatusPill tone="accent">New</StatusPill>}
                   <span className="text-xs text-faint">
-                    {formatDate(selected.createdAt, { dateStyle: "full", timeStyle: "short" })}
+                    {mounted ? formatDate(selected.createdAt, { dateStyle: "full", timeStyle: "short" }) : selected.createdAt.slice(0, 10)}
                   </span>
                 </div>
                 <h2 id="lead-title" className="mt-3 text-2xl font-semibold tracking-tight">

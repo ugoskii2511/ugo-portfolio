@@ -88,7 +88,7 @@ export default async function PricingPage() {
             The development price covers building the agreed scope. Running a website has other costs, some yearly and some optional, and
             they&apos;re listed here so you can budget properly.
           </p>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             <Block letter="A" title="Website development (one-time)">
               The agreed design and build, based on the scope and features we confirm together. Estimates above.
             </Block>

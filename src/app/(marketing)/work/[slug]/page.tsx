@@ -332,7 +332,7 @@ export default async function CaseStudyPage({ params }: Props) {
                 <p className="mt-4 max-w-3xl text-muted">Every project is priced from its requirements. Tell me what you need and I&apos;ll send a proper quotation.</p>
               )}
 
-              <div className="mt-10 grid gap-6 md:grid-cols-2">
+              <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="rounded-2xl border border-line p-5 sm:p-6">
                   <h3 className="font-semibold">Hosting and maintenance</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted">
