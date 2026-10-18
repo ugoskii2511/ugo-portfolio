@@ -82,7 +82,7 @@ export default async function ClientsOverviewPage() {
         <EmptyState
           icon={<Radar className="h-5 w-5" />}
           title="No prospects yet"
-          description="Run your first search to find real businesses near you, or add someone you already know."
+          description="Run your first search to find real businesses near you, or add someone you already know. New to this? Start with “How it works”."
           action={<LinkButton href="/admin/clients/find">Find new clients</LinkButton>}
         />
       </div>
@@ -273,7 +273,14 @@ function Header() {
       eyebrow="Clients"
       title="Client pipeline"
       description="Your prospecting at a glance. Every number here is counted from records in your database."
-      actions={<LinkButton href="/admin/clients/find">Find new clients</LinkButton>}
+      actions={
+        <>
+          <LinkButton href="/admin/clients/guide" variant="secondary" arrow={false}>
+            How it works
+          </LinkButton>
+          <LinkButton href="/admin/clients/find">Find new clients</LinkButton>
+        </>
+      }
     />
   );
 }

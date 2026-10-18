@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUpRight,
   Bell,
+  BookOpen,
   Columns3,
   FileText,
   Gauge,
@@ -61,6 +62,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { href: "/admin/clients/audits", label: "Website audits", icon: Gauge },
       { href: "/admin/clients/outreach", label: "Outreach", icon: Send },
       { href: "/admin/clients/settings", label: "Prospector settings", icon: SlidersHorizontal },
+      { href: "/admin/clients/guide", label: "How it works", icon: BookOpen },
     ],
   },
   {
