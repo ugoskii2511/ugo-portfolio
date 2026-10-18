@@ -25,6 +25,7 @@ from app.settings import load_settings
 from app.usage import UsageLimitReached, try_consume
 from app.web.audit import run_audit
 from app.web.pagespeed import pagespeed_findings, run_pagespeed
+from app.web.safe_fetch import FetchError
 from app.web.website_status import check_listed_website, search_candidate_domains
 
 LEASE_SECONDS = 75
@@ -118,6 +119,13 @@ def claim(conn, job_id: str) -> dict | None:
     return row
 
 
+def _where(exc: BaseException) -> str:
+    """Innermost frames of an unexpected error, for the admin-only job log
+    (serverless logs are short-lived, so this is where a bug gets seen)."""
+    frames = traceback.extract_tb(exc.__traceback__)[-3:]
+    return " (at " + " → ".join(f"{f.filename.rsplit('/', 2)[-1]}:{f.lineno} {f.name}" for f in frames) + ")" if frames else ""
+
+
 def _append_log(job: dict, message: str) -> list:
     log = list(job.get("log") or [])
     log.append({"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "msg": message[:500]})
@@ -188,7 +196,7 @@ def _run_step(job_id: str, budget_s: float) -> dict:
         except Exception as exc:  # unexpected: record, don't lose the lease forever
             conn.rollback()
             attempts = job["attempts"] + 1
-            detail = f"{type(exc).__name__}: {exc}"
+            detail = f"{type(exc).__name__}: {exc}{_where(exc)}"
             print("job step error", job_id, traceback.format_exc())
             _save(conn, job, status="failed" if attempts >= MAX_ATTEMPTS else "queued", state=state, processed=job["processed"],
                   total=job.get("total"), log=_append_log(job, f"Error: {detail}"), error=detail[:500], attempts=attempts)
@@ -317,7 +325,16 @@ def handle_verify(conn, job, state, settings, deadline):
             outcome = check_listed_website(prospect["businessName"], prospect["website"])
         else:
             try_consume(conn, settings, "site_fetch", 3)
-            outcome = search_candidate_domains(prospect["businessName"])
+            try:
+                outcome = search_candidate_domains(prospect["businessName"])
+            except FetchError as exc:
+                # Nothing learned (e.g. DNS unavailable): leave the status as
+                # it was rather than record a guess, and move on.
+                conn.commit()
+                messages.append(f"{prospect['businessName']}: not checked. {exc}")
+                state["index"] += 1
+                state["tally"]["not_checked"] = state["tally"].get("not_checked", 0) + 1
+                continue
         execute(
             conn,
             'UPDATE "Prospect" SET "websiteStatus" = %s, "websiteEvidence" = %s, "websiteCheckedAt" = now(), '

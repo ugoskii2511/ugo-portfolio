@@ -155,7 +155,7 @@ def resolve_public(host: str, port: int) -> list[str]:
         return [str(literal)]
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-    except socket.gaierror as exc:
+    except OSError as exc:  # gaierror, or a bare OSError from some resolvers
         raise FetchError(f"DNS lookup failed for {host}") from exc
     addresses: list[str] = []
     for info in infos:

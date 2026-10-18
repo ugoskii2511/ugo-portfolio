@@ -73,12 +73,51 @@ def check_listed_website(name: str, url: str, *, fetch=safe_get) -> StatusResult
     )
 
 
-def _resolves(host: str) -> bool:
+PUBLIC_RESOLVERS = ["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "2001:4860:4860::8888"]
+
+
+def _dns_exists(host: str) -> bool | None:
+    """Ask public resolvers directly. NXDOMAIN is a definite "no"; timeouts
+    and server failures are "don't know"."""
+    import dns.exception
+    import dns.resolver
+
+    resolver = dns.resolver.Resolver(configure=False)
+    resolver.nameservers = PUBLIC_RESOLVERS
+    resolver.lifetime = 5.0
+    resolver.timeout = 2.0
+    answered_empty = False
+    for rdtype in ("A", "AAAA"):
+        try:
+            resolver.resolve(host, rdtype)
+            return True
+        except dns.resolver.NXDOMAIN:
+            return False
+        except dns.resolver.NoAnswer:
+            answered_empty = True
+        except (dns.resolver.NoNameservers, dns.exception.Timeout, dns.resolver.YXDOMAIN, OSError):
+            continue
+    return False if answered_empty else None
+
+
+def _resolves(host: str) -> bool | None:
+    """True/False when DNS gave an answer; None when the lookup itself failed.
+
+    The serverless runtime's resolver raises a bare OSError (errno 16, EBUSY)
+    for names that don't exist instead of a clear "not found", so public
+    resolvers are asked first. "Couldn't look it up" is never treated as
+    evidence that a domain doesn't exist.
+    """
+    answer = _dns_exists(host)
+    if answer is not None:
+        return answer
     try:
         socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
         return True
     except socket.gaierror:
         return False
+    except OSError:
+        return None
 
 
 def search_candidate_domains(name: str, *, fetch=safe_get, resolves=_resolves, max_fetches: int = 3) -> StatusResult:
@@ -99,10 +138,15 @@ def search_candidate_domains(name: str, *, fetch=safe_get, resolves=_resolves, m
     if not slugs:
         return StatusResult("NONE_FOUND", "No website listed. Name too short or long to guess a domain reliably.")
     checked: list[str] = []
+    unknown: list[str] = []
     fetches = 0
     for host in (slug + tld for slug in slugs for tld in CANDIDATE_TLDS):
+        answer = resolves(host)
+        if answer is None:
+            unknown.append(host)
+            continue
         checked.append(host)
-        if not resolves(host):
+        if not answer:
             continue
         if fetches >= max_fetches:
             break
@@ -120,9 +164,10 @@ def search_candidate_domains(name: str, *, fetch=safe_get, resolves=_resolves, m
                     result.final_url,
                     fetches,
                 )
-    return StatusResult(
-        "NONE_FOUND",
-        f"No website listed in the source, and none of {', '.join(checked)} names the business.",
-        None,
-        fetches,
-    )
+    if not checked:
+        # Every lookup failed: we learned nothing, so don't claim "none found".
+        raise FetchError(f"DNS lookups failed for {', '.join(unknown)}; try the check again later.")
+    evidence = f"No website listed in the source, and none of {', '.join(checked)} names the business."
+    if unknown:
+        evidence += f" Couldn't look up {', '.join(unknown)}."
+    return StatusResult("NONE_FOUND", evidence, None, fetches)

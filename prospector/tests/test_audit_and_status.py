@@ -95,3 +95,35 @@ def test_candidate_domain_search_only_claims_name_matches():
     nothing = search_candidate_domains("Sunrise Academy", fetch=lambda u, **k: _result("<title>Parked domain</title>", url=u), resolves=lambda h: True)
     assert nothing.status == "NONE_FOUND"
     assert "sunriseacademy.com.ng" in nothing.evidence
+
+
+def test_dns_lookup_errors_are_not_treated_as_no_website(monkeypatch):
+    import socket
+
+    import pytest
+
+    from app.web import website_status
+    from app.web.safe_fetch import FetchError
+
+    # Some serverless resolvers raise a bare OSError (errno 16) instead of gaierror.
+    def busy(*_a, **_k):
+        raise OSError(16, "Device or resource busy")
+
+    monkeypatch.setattr(socket, "getaddrinfo", busy)
+    # Public resolvers unreachable too: the answer is "unknown", not "no".
+    monkeypatch.setattr(website_status, "_dns_exists", lambda h: None)
+    assert website_status._resolves("example.com.ng") is None
+    # A definite NXDOMAIN from public resolvers wins over the local error.
+    monkeypatch.setattr(website_status, "_dns_exists", lambda h: False)
+    assert website_status._resolves("example.com.ng") is False
+
+    # Some lookups answered, some errored: still "none found", but disclosed.
+    partial = search_candidate_domains(
+        "Sunrise Academy", fetch=lambda u, **k: _result("<title>x</title>", url=u),
+        resolves=lambda h: None if h.endswith(".ng") else False,
+    )
+    assert partial.status == "NONE_FOUND" and "Couldn't look up" in partial.evidence
+
+    # Every lookup errored: nothing learned, so no status is claimed.
+    with pytest.raises(FetchError):
+        search_candidate_domains("Sunrise Academy", resolves=lambda h: None)
