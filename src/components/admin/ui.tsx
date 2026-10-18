@@ -155,7 +155,7 @@ export function StatusPill({ tone = "neutral", children, dot = true }: { tone?: 
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.7rem] font-medium leading-5",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[0.7rem] font-medium leading-5",
         TONES[tone]
       )}
     >
