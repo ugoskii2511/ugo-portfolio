@@ -31,6 +31,24 @@ model Project {
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Showcase details (all optional; empty falls back to src/lib/projects.ts).
+  /// Hidden projects stay in the admin but never appear on the public site.
+  published      Boolean  @default(true)
+  category       String?
+  /// One-sentence description for cards.
+  lead           String?
+  /// The problem the website addresses.
+  challenge      String?
+  solution       String?
+  features       String[] @default([])
+  /// Extra screenshots of the actual project.
+  galleryUrls    String[] @default([])
+  /// Key of a pricing package (src/lib/pricing.ts) used for the estimate.
+  pricingPackage String?
+  /// Optional custom estimate in whole naira; never below the ₦150,000 floor.
+  priceMinNaira  Int?
+  priceMaxNaira  Int?
 }
 
 enum ReviewStatus {
@@ -74,6 +92,19 @@ model Booking {
   details     String
   whatsappUrl String
   createdAt   DateTime @default(now())
+
+  // Extra fields from the "Discuss a similar project" form (optional, so
+  // leads from the original booking form remain valid).
+  /// "booking" | "project-inquiry"
+  source               String  @default("booking")
+  email                String?
+  phone                String?
+  deadline             String?
+  features             String?
+  /// Name of the project the visitor was viewing.
+  sourceProject        String?
+  /// Visitor confirmed they understand prices shown are estimates.
+  estimateAcknowledged Boolean @default(false)
 }
 
 /// Singleton row (id = "singleton") holding global, admin-editable site settings
@@ -104,6 +135,12 @@ model SiteSettings {
   clientReviewsOverride     Int?
   serviceCategoriesOverride Int?
   averageRatingOverride     Float?
+
+  // Pricing (edited on Admin → Pricing). Null = the defaults in
+  // src/lib/pricing.ts. The disclaimer is shown on /work, every case study
+  // and /pricing.
+  pricingDisclaimer         String?
+  pricingConfig             Json?
 
   updatedAt           DateTime @updatedAt
 }

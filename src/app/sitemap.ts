@@ -11,6 +11,7 @@ const ROUTES = [
   { path: "/about", priority: 0.8 },
   { path: "/contact", priority: 0.8 },
   { path: "/audit", priority: 0.7 },
+  { path: "/pricing", priority: 0.8 },
   { path: "/reviews", priority: 0.6 },
   { path: "/review", priority: 0.3 },
   { path: "/announcements", priority: 0.4 },

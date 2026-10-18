@@ -33,6 +33,12 @@ export default async function AdminBookingsPage({
           details: booking.details,
           whatsappUrl: booking.whatsappUrl,
           createdAt: booking.createdAt.toISOString(),
+          source: booking.source,
+          email: booking.email,
+          phone: booking.phone,
+          deadline: booking.deadline,
+          sourceProject: booking.sourceProject,
+          estimateAcknowledged: booking.estimateAcknowledged,
         }))}
       />
     </div>

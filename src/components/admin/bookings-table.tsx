@@ -15,7 +15,20 @@ export type AdminBooking = {
   details: string;
   whatsappUrl: string;
   createdAt: string;
+  /// "booking" (original form) or "project-inquiry" (Discuss a similar project).
+  source?: string;
+  email?: string | null;
+  phone?: string | null;
+  deadline?: string | null;
+  sourceProject?: string | null;
+  estimateAcknowledged?: boolean;
 };
+
+/// A visitor's own number → a wa.me link to message them.
+function waTo(phone: string) {
+  const digits = phone.replace(/\D/g, "").replace(/^0/, "234");
+  return digits.length >= 7 ? `https://wa.me/${digits}` : null;
+}
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -26,8 +39,8 @@ function toCsvValue(value: string) {
 }
 
 function downloadCsv(bookings: AdminBooking[]) {
-  const header = ["Client", "Budget", "Project Type", "Details", "Submitted"];
-  const rows = bookings.map((b) => [b.clientName, b.budget, b.projectType, b.details, new Date(b.createdAt).toISOString()]);
+  const header = ["Client", "Email", "Phone", "Budget", "Project Type", "Deadline", "From project", "Details", "Submitted"];
+  const rows = bookings.map((b) => [b.clientName, b.email ?? "", b.phone ?? "", b.budget, b.projectType, b.deadline ?? "", b.sourceProject ?? "", b.details, new Date(b.createdAt).toISOString()]);
   const csv = [header, ...rows].map((row) => row.map(toCsvValue).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -185,6 +198,11 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                 <h2 id="lead-title" className="mt-3 text-2xl font-semibold tracking-tight">
                   {selected.clientName}
                 </h2>
+                {selected.source === "project-inquiry" && (
+                  <p className="mt-2">
+                    <StatusPill tone="accent">Project enquiry{selected.sourceProject ? ` · from ${selected.sourceProject}` : ""}</StatusPill>
+                  </p>
+                )}
                 <dl className="mt-5 grid grid-cols-2 gap-4">
                   <div className="min-w-0">
                     <dt className="label-mono !text-[0.6rem]">Project</dt>
@@ -194,14 +212,57 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                     <dt className="label-mono !text-[0.6rem]">Budget</dt>
                     <dd className="mt-1 break-words text-sm">{selected.budget}</dd>
                   </div>
+                  {selected.email && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Email</dt>
+                      <dd className="mt-1 break-all text-sm">
+                        <a href={`mailto:${selected.email}`} className="hover:text-accent-bright">
+                          {selected.email}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {selected.phone && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Phone / WhatsApp</dt>
+                      <dd className="mt-1 break-words text-sm">
+                        <a href={`tel:${selected.phone}`} className="hover:text-accent-bright">
+                          {selected.phone}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {selected.deadline && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Deadline</dt>
+                      <dd className="mt-1 break-words text-sm">{selected.deadline}</dd>
+                    </div>
+                  )}
+                  {selected.source === "project-inquiry" && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Pricing notice</dt>
+                      <dd className="mt-1 text-sm">{selected.estimateAcknowledged ? "Confirmed prices are estimates" : "Not confirmed"}</dd>
+                    </div>
+                  )}
                 </dl>
               </div>
               <div className="flex-1 px-5 py-5 sm:px-6">
                 <h3 className="label-mono !text-[0.6rem]">Brief</h3>
                 <p className="mt-3 whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed text-fg/90">{selected.details}</p>
               </div>
-              <div className="flex flex-col gap-2 border-t border-line px-5 py-4 sm:flex-row sm:px-6">
-                {safeWhatsAppUrl(selected.whatsappUrl) && (
+              <div className="flex flex-col gap-2 border-t border-line px-5 py-4 sm:flex-row sm:flex-wrap sm:px-6">
+                {selected.email && (
+                  <a href={`mailto:${selected.email}?subject=${encodeURIComponent(`Your ${selected.projectType} enquiry`)}`} className={buttonClass("primary", "sm")}>
+                    Email them
+                  </a>
+                )}
+                {selected.phone && waTo(selected.phone) && (
+                  <a href={waTo(selected.phone)!} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "sm")}>
+                    WhatsApp them
+                    <ArrowUpRight className="h-4 w-4" aria-hidden />
+                  </a>
+                )}
+                {selected.source !== "project-inquiry" && safeWhatsAppUrl(selected.whatsappUrl) && (
                   <a
                     href={safeWhatsAppUrl(selected.whatsappUrl)!}
                     target="_blank"

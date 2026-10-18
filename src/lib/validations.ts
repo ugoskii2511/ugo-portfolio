@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SERVICE_ICON_KEYS } from "@/lib/services-data";
+import { PACKAGE_ORDER, PRICE_FLOOR, type PackageKey } from "@/lib/pricing";
 
 // Honeypot: a field real visitors never see or fill in, but naive form
 // bots often auto-fill. A non-empty value marks the submission as spam.
@@ -52,8 +53,47 @@ export const projectSchema = z.object({
   imageUrl: z.union([httpUrl, z.literal("")]).optional(),
   featured: z.boolean(),
   order: z.coerce.number().int(),
+  // Showcase fields (optional; empty values fall back to the editorial layer).
+  published: z.boolean().optional(),
+  category: z.string().trim().max(80).nullable().optional(),
+  lead: z.string().trim().max(300).nullable().optional(),
+  challenge: z.string().trim().max(2000).nullable().optional(),
+  solution: z.string().trim().max(2000).nullable().optional(),
+  features: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
+  galleryUrls: z.array(httpUrl).max(8).optional(),
+  pricingPackage: z.enum(PACKAGE_ORDER as [PackageKey, ...PackageKey[]]).nullable().optional(),
+  priceMinNaira: z.coerce.number().int().min(PRICE_FLOOR, `Estimates can't go below ₦${PRICE_FLOOR.toLocaleString("en-NG")}`).max(1_000_000_000).nullable().optional(),
+  priceMaxNaira: z.coerce.number().int().min(PRICE_FLOOR, `Estimates can't go below ₦${PRICE_FLOOR.toLocaleString("en-NG")}`).max(1_000_000_000).nullable().optional(),
 });
 export type ProjectInput = z.infer<typeof projectSchema>;
+
+/// Range rule checked after parsing (zod can't .partial() a refined object).
+/// Returns an error message, or null when the custom estimate is valid.
+export function projectPriceProblem(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (max != null && min == null) return "Set a starting price before a maximum.";
+  if (min != null && max != null && max < min) return "The maximum estimate must be at least the starting price.";
+  return null;
+}
+
+/// "Discuss a similar project" enquiry from the public site.
+export const projectInquirySchema = z.object({
+  clientName: z.string().trim().min(2, "Please enter your name").max(100),
+  email: z.string().trim().email("Please enter a valid email address").max(200),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .refine((v) => /^[+\d][\d\s()-]{6,}$/.test(v), "Please enter a valid phone or WhatsApp number"),
+  projectType: z.string().trim().min(2, "Choose the type of website").max(150),
+  budget: z.string().trim().min(1, "Choose an approximate budget").max(100),
+  deadline: z.string().trim().max(100).optional().default(""),
+  features: z.string().trim().max(2000).optional().default(""),
+  details: z.string().trim().max(3000).optional().default(""),
+  sourceProject: z.string().trim().max(150).optional().default(""),
+  estimateAcknowledged: z.literal(true, { message: "Please confirm you understand the prices shown are estimates" }),
+  honeypot: honeypotField,
+});
+export type ProjectInquiryInput = z.infer<typeof projectInquirySchema>;
 
 export const announcementSchema = z.object({
   message: z.string().trim().min(1).max(300),
