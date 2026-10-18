@@ -40,7 +40,7 @@ export default async function WorkPage() {
           )}
 
           <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start">
-            <div className="edge rounded-[1.25rem] p-6 sm:p-8">
+            <div className="edge relative rounded-[1.25rem] p-6 sm:p-8">
               <p className="label-mono">Pricing</p>
               <h2 className="mt-4 text-2xl font-semibold tracking-tight">What does a website cost?</h2>
               <p className="mt-3 text-pretty text-sm leading-relaxed text-muted">
