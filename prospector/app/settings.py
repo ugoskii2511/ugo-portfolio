@@ -92,6 +92,12 @@ DEFAULTS: dict[str, Any] = {
         "window_start_hour": 8,
         "window_end_hour": 19,
         "weekdays_only": True,
+        # "personal" looks like a typed email (best for landing in Primary);
+        # "designed" uses the styled layout with project card and button.
+        "email_style": "personal",
+        # One-click unsubscribe headers (a bulk-mail signal; only required
+        # for very high volume). The footer unsubscribe link is always there.
+        "list_unsubscribe_header": False,
     },
     # Saved discovery searches run automatically by the scheduler.
     "schedules": [],

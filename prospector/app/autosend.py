@@ -163,6 +163,7 @@ def run(conn, settings: dict, *, now: datetime | None = None, max_emails: int | 
                         unsubscribe=unsub,
                         idempotency_key=f"outreach-{draft_id}",
                         html_body=draft.html,
+                        list_unsubscribe_header=bool(a.get("list_unsubscribe_header", False)),
                     )
                 except MailError as exc:
                     execute(conn, 'UPDATE "OutreachDraft" SET status = %s, "updatedAt" = now() WHERE id = %s', ("rejected", draft_id))

@@ -64,6 +64,7 @@ def send_email(
     unsubscribe: str,
     idempotency_key: str,
     html_body: str | None = None,
+    list_unsubscribe_header: bool = True,
     client: httpx.Client | None = None,
 ) -> str:
     """Send one email. Returns the provider's message id."""
@@ -75,10 +76,9 @@ def send_email(
         "subject": subject,
         "text": text,
         "html": html_body or to_html(text),
-        "headers": {
-            "List-Unsubscribe": f"<{unsubscribe}>",
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
+        # Bulk-mail headers: required only for 5,000+/day senders, and a strong
+        # "Promotions" signal to Gmail, so they are optional (setting).
+        **({"headers": {"List-Unsubscribe": f"<{unsubscribe}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"}} if list_unsubscribe_header else {}),
         "tags": [{"name": "category", "value": "prospect_outreach"}],
     }
     if reply_to:

@@ -29,6 +29,8 @@ type Settings = {
     window_start_hour: number;
     window_end_hour: number;
     weekdays_only: boolean;
+    email_style?: "personal" | "designed";
+    list_unsubscribe_header?: boolean;
   };
   schedules: Schedule[];
 };
@@ -302,6 +304,16 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm">Weekdays only</span>
               <Switch checked={autosend.weekdays_only} onChange={(v) => setAutosend({ ...autosend, weekdays_only: v })} label="Send on weekdays only" />
+            </div>
+            <Field label="Email style" htmlFor="as-style" hint="Personal looks like an email you typed yourself and is the most likely to land in Gmail’s Primary tab. Designed adds a project card with a screenshot and a WhatsApp button, but Gmail tends to file it under Promotions.">
+              <select id="as-style" value={autosend.email_style ?? "personal"} onChange={(e) => setAutosend({ ...autosend, email_style: e.target.value as "personal" | "designed" })} className="field">
+                <option value="personal">Personal (recommended)</option>
+                <option value="designed">Designed</option>
+              </select>
+            </Field>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Add one-click unsubscribe headers <span className="text-muted">(only needed at high volume; makes Promotions more likely)</span></span>
+              <Switch checked={autosend.list_unsubscribe_header ?? false} onChange={(v) => setAutosend({ ...autosend, list_unsubscribe_header: v })} label="Add one-click unsubscribe headers" />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Send emails from (hour, Lagos time)" htmlFor="as-start">

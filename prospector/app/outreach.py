@@ -20,7 +20,7 @@ import hashlib
 from dataclasses import dataclass
 from urllib.parse import quote
 
-from app.email_html import EmailParts, Project, Signature, render
+from app.email_html import EmailParts, Project, Signature, render, render_personal
 
 TEMPLATES = {
     "new_website": "New website",
@@ -351,7 +351,8 @@ def build_draft(
     whatsapp_url = (
         f"https://wa.me/{whatsapp}?text=" + quote(f"Hi {first}, I got your email about {name}.") if whatsapp else None
     )
-    html_body = render(
+    style = (settings.get("autosend") or {}).get("email_style", "personal")
+    html_body = (render if style == "designed" else render_personal)(
         EmailParts(
             preheader=point[0][:140],
             greeting=greeting,

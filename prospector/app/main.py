@@ -308,7 +308,9 @@ def _validate_setting(key: str, value: Any) -> None:
     elif key == "autosend":
         if not isinstance(value, dict):
             raise HTTPException(status_code=400, detail="Invalid automatic outreach settings")
-        for flag in ("email_enabled", "whatsapp_drafts", "whatsapp_include_review", "weekdays_only"):
+        if value.get("email_style", "personal") not in ("personal", "designed"):
+            raise HTTPException(status_code=400, detail="Email style must be personal or designed")
+        for flag in ("email_enabled", "whatsapp_drafts", "whatsapp_include_review", "weekdays_only", "list_unsubscribe_header"):
             if flag in value and not isinstance(value[flag], bool):
                 raise HTTPException(status_code=400, detail=f"{flag} must be on or off")
         start, end = value.get("window_start_hour", 8), value.get("window_end_hour", 19)

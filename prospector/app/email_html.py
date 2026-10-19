@@ -153,3 +153,35 @@ def render(parts: EmailParts) -> str:
 </table>
 </td></tr></table>
 </body></html>"""
+
+
+def render_personal(parts: EmailParts) -> str:
+    """Looks like a normal email typed by a person: the client's default
+    look, plain paragraphs, an ordinary link to the project, a text
+    signature and a small opt-out. No card, image, button or background,
+    which is what Gmail weighs most when choosing Primary over Promotions."""
+    def para(text: str) -> str:
+        return f"<p>{_text(text)}</p>"
+
+    sig = parts.signature
+    sig_lines = [html.escape(sig.name)]
+    if sig.title:
+        sig_lines.append(html.escape(sig.title))
+    if sig.website:
+        sig_lines.append(f'<a href="{html.escape(sig.website, quote=True)}">{html.escape(re.sub(r"^https?://", "", sig.website))}</a>')
+    if sig.contact_line:
+        sig_lines.append(html.escape(sig.contact_line))
+    project = ""
+    if parts.project:
+        p = parts.project
+        project = para(f"You can see {p.label} here: {p.url}")
+    footer = html.escape(parts.optout)
+    if parts.unsubscribe_url:
+        footer += f' <a href="{html.escape(parts.unsubscribe_url, quote=True)}">Unsubscribe</a>.'
+    return (
+        "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
+        f"<div>{para(parts.greeting)}{''.join(para(p) for p in parts.paragraphs)}{project}{para(parts.ask)}"
+        f"<p>{html.escape(parts.closing)}<br>{'<br>'.join(sig_lines)}</p>"
+        f'<p style="font-size:12px;color:#777">{footer}</p></div>'
+        "</body></html>"
+    )
