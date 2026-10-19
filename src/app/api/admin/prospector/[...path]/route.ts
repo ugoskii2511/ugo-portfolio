@@ -17,7 +17,7 @@ const ALLOWED: { method: "GET" | "POST" | "PUT"; pattern: RegExp }[] = [
   { method: "POST", pattern: new RegExp(`^prospects/${ID}/(score|drafts|do-not-contact)$`) },
   { method: "POST", pattern: new RegExp(`^drafts/${ID}/sent$`) },
   { method: "GET", pattern: /^settings$/ },
-  { method: "PUT", pattern: /^settings\/(limits|scoring|followups|retention|audit|outreach|schedules|autosend)$/ },
+  { method: "PUT", pattern: /^settings\/(limits|scoring|followups|retention|audit|outreach|schedules|autosend|autopilot)$/ },
   { method: "GET", pattern: /^outreach\/status$/ },
   { method: "POST", pattern: /^outreach\/run$/ },
   { method: "GET", pattern: /^outreach\/templates$/ },

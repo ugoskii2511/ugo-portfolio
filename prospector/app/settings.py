@@ -95,9 +95,23 @@ DEFAULTS: dict[str, Any] = {
         # "personal" looks like a typed email (best for landing in Primary);
         # "designed" uses the styled layout with project card and button.
         "email_style": "personal",
+        # Who can be emailed automatically (anyone not yet contacted with a
+        # public email). Remove stages to be stricter.
+        "email_stages": ["QUALIFIED", "NEEDS_REVIEW", "DISCOVERED"],
         # One-click unsubscribe headers (a bulk-mail signal; only required
         # for very high volume). The footer unsubscribe link is always there.
         "list_unsubscribe_header": False,
+    },
+    # Automatic discovery: each scheduler run (≈08:00, 13:00, 17:00 Lagos)
+    # searches the next area × industry in rotation. Empty industries = the
+    # scoring target industries.
+    "autopilot": {
+        "enabled": True,
+        "areas": [{"country": "Nigeria", "state": "Federal Capital Territory", "city": "Abuja"}],
+        "industries": [],
+        "batch": 25,
+        "website_filter": "any",
+        "audit_new_sites": True,
     },
     # Saved discovery searches run automatically by the scheduler.
     "schedules": [],

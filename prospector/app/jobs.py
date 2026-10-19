@@ -321,7 +321,8 @@ def handle_verify(conn, job, state, settings, deadline):
             state["index"] += 1
             continue
         if prospect.get("website"):
-            try_consume(conn, settings, "site_fetch")
+            # Homepage, plus the contact page when looking for a public email.
+            try_consume(conn, settings, "site_fetch", 2)
             outcome = check_listed_website(prospect["businessName"], prospect["website"])
         else:
             try_consume(conn, settings, "site_fetch", 3)
@@ -343,6 +344,10 @@ def handle_verify(conn, job, state, settings, deadline):
              _domain(outcome.website) if not prospect.get("website") else None, prospect_id),
         )
         log_event(conn, prospect_id, "website_checked", f"Website status: {outcome.status.replace('_', ' ').lower()}", data={"evidence": outcome.evidence})
+        # A public email on their own listed website: save it if we have none.
+        if outcome.emails and not prospect.get("email"):
+            execute(conn, 'UPDATE "Prospect" SET email = %s, "updatedAt" = now() WHERE id = %s AND email IS NULL', (outcome.emails[0], prospect_id))
+            log_event(conn, prospect_id, "email_found", f"Public email found on their website: {outcome.emails[0]}", data={"emails": outcome.emails, "website": outcome.website})
         crm.rescore(conn, settings, prospect_id)
         conn.commit()
         state["index"] += 1
@@ -496,6 +501,67 @@ def enqueue_scheduled(slot: str) -> list[str]:
             except JobError as exc:
                 print("schedule skipped", schedule.get("id"), exc)
     return created
+
+
+AUTOPILOT_CURSOR = "autopilot_cursor"
+
+
+def autopilot_plan(settings: dict) -> list[dict]:
+    """Every (area, industry) combination the autopilot rotates through."""
+    a = settings["autopilot"]
+    industries = a.get("industries") or settings["scoring"].get("target_industries") or []
+    plan = []
+    for area in a.get("areas") or []:
+        for industry in industries or [None]:
+            plan.append({
+                "country": area.get("country") or "Nigeria",
+                "state": area.get("state") or "",
+                "city": area.get("city") or "",
+                "industries": [industry] if industry else [],
+                "websiteFilter": a.get("website_filter", "any"),
+                "batch": int(a.get("batch", 25)),
+                "verify": True,
+            })
+    return plan
+
+
+def enqueue_autopilot(slot: str) -> dict:
+    """Start the next search in the rotation, and (midday) audit new sites.
+
+    One search per scheduler run, rotating through every area × industry,
+    so new businesses keep coming in without anyone pressing a button.
+    Duplicates are skipped by discovery, so repeats cost nothing."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    out: dict = {"discover": None, "audit": None}
+    with connect() as conn:
+        settings = load_settings(conn)
+        if not settings["autopilot"].get("enabled"):
+            return {"skipped": "autopilot is off"}
+        plan = autopilot_plan(settings)
+        if plan:
+            row = fetch_one(conn, 'SELECT value FROM "ProspectorSetting" WHERE key = %s', (AUTOPILOT_CURSOR,))
+            cursor = int((row or {}).get("value") or 0)
+            params = plan[cursor % len(plan)]
+            try:
+                job = create_job(conn, "discover", params, created_by="autopilot", idempotency_key=f"autopilot:{today}:{slot}")
+                out["discover"] = {"id": job["id"], "city": params["city"] or params["state"], "industries": params["industries"]}
+                execute(
+                    conn,
+                    'INSERT INTO "ProspectorSetting"(key, value, "updatedAt") VALUES (%s, %s, now()) '
+                    'ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = now()',
+                    (AUTOPILOT_CURSOR, Json(cursor + 1)),
+                )
+                conn.commit()
+            except JobError as exc:
+                out["discover"] = {"error": str(exc)}
+        if slot == "midday" and settings["autopilot"].get("audit_new_sites", True):
+            limit = min(int(settings["limits"].get("max_audit_batch", 30)), 15)
+            try:
+                job = create_job(conn, "audit", {"scope": "unchecked", "limit": limit}, created_by="autopilot", idempotency_key=f"autoaudit:{today}")
+                out["audit"] = job["id"]
+            except JobError as exc:
+                out["audit"] = {"error": str(exc)}
+    return out
 
 
 def daily_maintenance() -> dict:

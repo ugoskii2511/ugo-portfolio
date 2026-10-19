@@ -305,6 +305,16 @@ def _validate_setting(key: str, value: Any) -> None:
     elif key == "retention":
         if not isinstance(value, dict) or any(not isinstance(v, int) or not 0 <= v <= 3650 for v in value.values()):
             raise HTTPException(status_code=400, detail="Retention periods must be whole days from 0 to 3650")
+    elif key == "autopilot":
+        if not isinstance(value, dict) or not isinstance(value.get("areas", []), list) or len(value.get("areas", [])) > 20:
+            raise HTTPException(status_code=400, detail="Autopilot needs a list of up to 20 areas")
+        for area in value.get("areas", []):
+            if not isinstance(area, dict) or not (area.get("city") or area.get("state")):
+                raise HTTPException(status_code=400, detail="Each autopilot area needs a city or a state")
+        if not isinstance(value.get("batch", 25), int) or not 1 <= value.get("batch", 25) <= 150:
+            raise HTTPException(status_code=400, detail="Autopilot batch must be 1–150")
+        if value.get("website_filter", "any") not in ("any", "with_website", "without_website"):
+            raise HTTPException(status_code=400, detail="Invalid website filter")
     elif key == "autosend":
         if not isinstance(value, dict):
             raise HTTPException(status_code=400, detail="Invalid automatic outreach settings")
@@ -329,12 +339,13 @@ def _validate_setting(key: str, value: Any) -> None:
 @app.get("/cron/tick")
 def cron_tick(slot: str = "morning", _=Depends(require_cron)):
     created = jobs.enqueue_scheduled(slot)
+    autopilot = jobs.enqueue_autopilot(slot)
     worked = jobs.work_queue(budget_s=40.0)
     # Then outreach: a share of today's email cap, and WhatsApp messages prepared.
     with connect() as conn:
         settings = _settings_with_portfolio(conn)
         outreach = autosend.run(conn, settings, max_emails=autosend.tick_quota(settings))
-    return {"scheduled": created, "worked": worked, "outreach": {k: len(v) if isinstance(v, list) and k != "notes" else v for k, v in outreach.items()}}
+    return {"scheduled": created, "autopilot": autopilot, "worked": worked, "outreach": {k: len(v) if isinstance(v, list) and k != "notes" else v for k, v in outreach.items()}}
 
 
 # ------------------------------------------------------------ auto outreach
@@ -352,7 +363,7 @@ def outreach_status(_actor: str = Depends(require_admin)):
             'SELECT count(*) AS n FROM "OutreachDraft" d JOIN "Prospect" p ON p.id = d."prospectId" '
             "WHERE d.channel = 'whatsapp' AND d.status = 'approved' AND p.\"doNotContact\" = false",
         )["n"]
-        waiting = len(autosend.email_candidates(conn, 500))
+        waiting = len(autosend.email_candidates(conn, 500, settings["autosend"].get("email_stages")))
         return {
             "configured": config.email_configured,
             "settings": settings["autosend"],

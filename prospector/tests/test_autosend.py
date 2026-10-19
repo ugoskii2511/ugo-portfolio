@@ -124,7 +124,7 @@ def test_autosend_rules_against_database(monkeypatch):
             # Only our QA rows should be picked: restrict candidates to the tag.
             real_email = autosend.email_candidates
             real_wa = autosend.whatsapp_candidates
-            monkeypatch.setattr(autosend, "email_candidates", lambda c, n: [r for r in real_email(c, 500) if r["businessName"].startswith(TAG)][:n])
+            monkeypatch.setattr(autosend, "email_candidates", lambda c, n, s=None: [r for r in real_email(c, 500, s) if r["businessName"].startswith(TAG)][:n])
             monkeypatch.setattr(autosend, "whatsapp_candidates", lambda c, s, n: [r for r in real_wa(c, s, 500) if r["businessName"].startswith(TAG)][:n])
 
             result = autosend.run(conn, settings, now=weekday_10am)
@@ -167,3 +167,79 @@ def test_outreach_status_endpoint_against_database(monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert {"configured", "settings", "dailyCap", "sentToday", "windowOpen", "emailQueue", "whatsappReady"} <= set(body)
+
+
+def test_extract_emails_from_business_site():
+    from app.web.website_status import contact_page, extract_emails
+
+    html = """<html><body>
+      <a href="mailto:info@sunriseacademy.ng?subject=Hi">Email us</a>
+      <p>Admissions: admissions@sunriseacademy.ng or call us. Also sunrise.school@gmail.com</p>
+      <p>Site by webguy@designagency.com · logo@2x.png · noreply@sunriseacademy.ng · you@example.com</p>
+      <a href="/contact-us">Contact</a><a href="https://other.com/contact">Partner</a>
+    </body></html>"""
+    emails = extract_emails(html, "https://www.sunriseacademy.ng/")
+    assert emails[:2] == ["info@sunriseacademy.ng", "admissions@sunriseacademy.ng"]
+    assert "sunrise.school@gmail.com" in emails
+    assert not any("designagency" in e or "example" in e or "noreply" in e or e.endswith(".png") for e in emails)
+    assert contact_page(html, "https://www.sunriseacademy.ng/") == "https://www.sunriseacademy.ng/contact-us"
+
+
+def test_listed_site_check_looks_on_contact_page():
+    from app.web.website_status import check_listed_website
+
+    class R:
+        def __init__(self, url, text):
+            self.final_url, self.text, self.status = url, text, 200
+
+    pages = {
+        "https://bizname.ng/": R("https://bizname.ng/", "<title>Bizname Ltd</title><a href='/contact'>Contact</a>"),
+        "https://bizname.ng/contact": R("https://bizname.ng/contact", "<p>Write to hello@bizname.ng</p>"),
+    }
+    out = check_listed_website("Bizname Ltd", "https://bizname.ng/", fetch=lambda url, **k: pages[url])
+    assert out.status == "VERIFIED" and out.emails == ["hello@bizname.ng"] and out.fetches == 2
+
+
+def test_autopilot_rotates_areas_and_industries():
+    from app.jobs import autopilot_plan
+
+    s = copy.deepcopy(SETTINGS)
+    s["autopilot"]["areas"] = [{"state": "Federal Capital Territory", "city": "Abuja"}, {"state": "Lagos", "city": "Ikeja"}]
+    s["autopilot"]["industries"] = ["Education", "Food & drink"]
+    plan = autopilot_plan(s)
+    assert len(plan) == 4
+    assert {(p["city"], p["industries"][0]) for p in plan} == {("Abuja", "Education"), ("Abuja", "Food & drink"), ("Ikeja", "Education"), ("Ikeja", "Food & drink")}
+    assert all(p["verify"] and p["batch"] == 25 for p in plan)
+    s["autopilot"]["industries"] = []  # falls back to the scoring target industries
+    assert len(autopilot_plan(s)) == 2 * len(s["scoring"]["target_industries"])
+
+
+@db
+def test_email_candidates_only_state_true_things(monkeypatch):
+    from app.db import connect
+    from app.prospects import upsert
+
+    with connect() as conn:
+        try:
+            def make(name, **fields):
+                _, pid = upsert(conn, {"businessName": f"{TAG} {name}", "city": "Abuja", "source": "qa-test", "sourceRef": f"{TAG}/{name}", "email": f"{name.lower()}-{TAG}@example-biz.ng"})
+                sets = ", ".join(f'"{k}" = %s' for k in fields)
+                conn.execute(f'UPDATE "Prospect" SET {sets} WHERE id = %s', (*fields.values(), pid))
+                return pid
+
+            no_site = make("NoSite", stage="DISCOVERED", websiteStatus="NONE_FOUND")
+            guessed = make("Guessed", stage="QUALIFIED", websiteStatus="FOUND_UNVERIFIED", website="https://guess.ng/", websiteEvidence="No website listed, but https://guess.ng/ names the business")
+            unaudited = make("Unaudited", stage="QUALIFIED", websiteStatus="VERIFIED", website="https://own.ng/")
+            conn.commit()
+            ids = {r["id"] for r in autosend.email_candidates(conn, 1000) if r["businessName"].startswith(TAG)}
+            assert no_site in ids  # any stage, as long as never contacted
+            assert guessed not in ids  # never write about a guessed website
+            assert unaudited not in ids  # wait for the audit first
+            conn.execute('INSERT INTO "ProspectAudit"(id, "prospectId", url, status, findings, "createdAt") VALUES (%s, %s, %s, %s, %s::jsonb, now())', (f"{TAG}-a", unaudited, "https://own.ng/", "completed", "[]"))
+            conn.commit()
+            ids = {r["id"] for r in autosend.email_candidates(conn, 1000) if r["businessName"].startswith(TAG)}
+            assert unaudited in ids
+        finally:
+            conn.rollback()
+            conn.execute('DELETE FROM "Prospect" WHERE "businessName" LIKE %s', (f"{TAG}%",))
+            conn.commit()

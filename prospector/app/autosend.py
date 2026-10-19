@@ -68,16 +68,29 @@ _NOT_CONTACTED = (
 )
 
 
-def email_candidates(conn, limit: int) -> list[dict]:
+EMAIL_STAGES = ["QUALIFIED", "NEEDS_REVIEW", "DISCOVERED"]
+
+
+def email_candidates(conn, limit: int, stages: list[str] | None = None) -> list[dict]:
+    """Prospects with a public email who've never been contacted.
+
+    The message must only state true things, so: the website has been
+    checked; a site the system merely *guessed* (not listed by the
+    business) is never written about; and if they have a working site, we
+    wait for its audit so the email can mention something real. Best
+    scores first."""
     return fetch_all(
         conn,
         'SELECT p.* FROM "Prospect" p WHERE p."archivedAt" IS NULL AND p."doNotContact" = false '
-        "AND p.stage = 'QUALIFIED' AND p.email IS NOT NULL AND p.source <> 'inbound' AND p.\"websiteStatus\" <> 'UNCHECKED' "
+        "AND p.stage = ANY(%s) AND p.email IS NOT NULL AND p.source <> 'inbound' AND p.\"websiteStatus\" <> 'UNCHECKED' "
+        "AND NOT (p.\"websiteStatus\" = 'FOUND_UNVERIFIED' AND p.\"websiteEvidence\" LIKE 'No website listed%%') "
+        "AND (p.website IS NULL OR p.\"websiteStatus\" IN ('NONE_FOUND', 'UNCERTAIN') "
+        '     OR EXISTS (SELECT 1 FROM "ProspectAudit" a WHERE a."prospectId" = p.id AND a.status <> \'failed\')) '
         f"AND {_NOT_CONTACTED}"
         'AND NOT EXISTS (SELECT 1 FROM "OutreachDraft" d WHERE d."prospectId" = p.id AND d.channel = \'email\' AND d.status IN (\'approved\', \'sent\')) '
         'AND NOT EXISTS (SELECT 1 FROM "ProspectEvent" e WHERE e."prospectId" = p.id AND e.type = \'email_failed\') '
         'ORDER BY p.score DESC NULLS LAST, p."discoveredAt" LIMIT %s',
-        (limit,),
+        (stages or EMAIL_STAGES, limit),
     )
 
 
@@ -137,7 +150,7 @@ def run(conn, settings: dict, *, now: datetime | None = None, max_emails: int | 
         else:
             reply_to = _reply_to(conn)
             assets = email_assets(conn)
-            for prospect in email_candidates(conn, quota):
+            for prospect in email_candidates(conn, quota, a.get("email_stages") or EMAIL_STAGES):
                 if is_suppressed(conn, prospect):
                     summary["skipped"].append({"id": prospect["id"], "reason": "on the do-not-contact list"})
                     continue

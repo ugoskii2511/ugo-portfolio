@@ -32,6 +32,14 @@ type Settings = {
     email_style?: "personal" | "designed";
     list_unsubscribe_header?: boolean;
   };
+  autopilot?: {
+    enabled: boolean;
+    areas: { country?: string; state: string; city: string }[];
+    industries: string[];
+    batch: number;
+    website_filter: "any" | "with_website" | "without_website";
+    audit_new_sites: boolean;
+  };
   schedules: Schedule[];
 };
 
@@ -137,6 +145,9 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
   const [retention, setRetention] = useState(initial.settings.retention);
   const [outreach, setOutreach] = useState(initial.settings.outreach);
   const [audit, setAudit] = useState(initial.settings.audit);
+  const [autopilot, setAutopilot] = useState(
+    initial.settings.autopilot ?? { enabled: true, areas: [{ country: "Nigeria", state: "Federal Capital Territory", city: "Abuja" }], industries: [], batch: 25, website_filter: "any" as const, audit_new_sites: true }
+  );
   const [autosend, setAutosend] = useState(
     initial.settings.autosend ?? { email_enabled: true, whatsapp_drafts: true, whatsapp_include_review: false, window_start_hour: 8, window_end_hour: 19, weekdays_only: true }
   );
@@ -281,6 +292,102 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
             <input id="o-c" maxLength={200} value={outreach.contact_line} onChange={(e) => setOutreach({ ...outreach, contact_line: e.target.value })} className="field" />
           </Field>
         </Section>
+
+        <div id="autopilot" className="scroll-mt-24 lg:col-span-2">
+          <Section
+            title="Autopilot: find new businesses automatically"
+            description="Each scheduler run (about 08:00, 13:00 and 17:00 Lagos time) searches the next city × industry below, in rotation. Duplicates are skipped, websites are checked (and searched for a public email), and new sites are audited at midday."
+            onSave={() => save("autopilot", autopilot)}
+            saving={saving === "autopilot"}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Search automatically</span>
+              <Switch checked={autopilot.enabled} onChange={(v) => setAutopilot({ ...autopilot, enabled: v })} label="Search automatically" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-[0.8rem] font-medium text-fg/90">Areas</p>
+              {autopilot.areas.map((area, index) => (
+                <div key={index} className="flex flex-wrap items-end gap-2">
+                  <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-muted">
+                    State
+                    <select
+                      value={area.state}
+                      onChange={(e) => setAutopilot({ ...autopilot, areas: autopilot.areas.map((a, j) => (j === index ? { ...a, state: e.target.value } : a)) })}
+                      className="field"
+                    >
+                      <option value="">Any</option>
+                      {NIGERIAN_STATES.map((st) => (
+                        <option key={st}>{st}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex min-w-40 flex-1 flex-col gap-1 text-xs text-muted">
+                    City (optional)
+                    <input
+                      value={area.city}
+                      onChange={(e) => setAutopilot({ ...autopilot, areas: autopilot.areas.map((a, j) => (j === index ? { ...a, city: e.target.value } : a)) })}
+                      className="field"
+                      maxLength={100}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={autopilot.areas.length <= 1}
+                    onClick={() => setAutopilot({ ...autopilot, areas: autopilot.areas.filter((_, j) => j !== index) })}
+                    className={buttonClass("ghost", "sm", "mb-1 !px-3")}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden /> Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                disabled={autopilot.areas.length >= 20}
+                onClick={() => setAutopilot({ ...autopilot, areas: [...autopilot.areas, { country: "Nigeria", state: "Lagos", city: "" }] })}
+                className={buttonClass("secondary", "sm", "w-fit")}
+              >
+                <Plus className="h-4 w-4" aria-hidden /> Add an area
+              </button>
+            </div>
+            <fieldset>
+              <legend className="text-[0.8rem] font-medium text-fg/90">Industries (none ticked = your target industries)</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {INDUSTRIES.map((industry) => {
+                  const on = autopilot.industries.includes(industry);
+                  return (
+                    <label key={industry} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() =>
+                          setAutopilot({ ...autopilot, industries: on ? autopilot.industries.filter((x) => x !== industry) : [...autopilot.industries, industry] })
+                        }
+                      />
+                      {industry}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="New businesses per search" htmlFor="ap-batch" hint="1–150. Smaller searches spread your free OpenStreetMap usage over the day.">
+                <input id="ap-batch" type="number" min={1} max={150} value={autopilot.batch} onChange={(e) => setAutopilot({ ...autopilot, batch: Number(e.target.value) })} className="field" />
+              </Field>
+              <Field label="Website" htmlFor="ap-web">
+                <select id="ap-web" value={autopilot.website_filter} onChange={(e) => setAutopilot({ ...autopilot, website_filter: e.target.value as "any" | "with_website" | "without_website" })} className="field">
+                  <option value="any">Any</option>
+                  <option value="without_website">Only businesses with no website listed</option>
+                  <option value="with_website">Only businesses with a website (more likely to have an email)</option>
+                </select>
+              </Field>
+            </div>
+            <p className="text-xs text-muted">
+              Rotation: {autopilot.areas.length} area{autopilot.areas.length === 1 ? "" : "s"} ×{" "}
+              {(autopilot.industries.length || scoring.target_industries.length)} industr{(autopilot.industries.length || scoring.target_industries.length) === 1 ? "y" : "ies"} ={" "}
+              {autopilot.areas.length * (autopilot.industries.length || scoring.target_industries.length)} searches, 3 per weekday.
+            </p>
+          </Section>
+        </div>
 
         <div id="autosend" className="scroll-mt-24 lg:col-span-2">
           <Section

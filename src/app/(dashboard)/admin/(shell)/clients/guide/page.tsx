@@ -266,6 +266,11 @@ export default async function ClientsGuidePage() {
 
           <Section id="find" title="1. Finding businesses">
             <p>
+              <strong>It runs on its own.</strong> The <em>Autopilot</em> (Prospector settings) searches the next city × industry every
+              weekday around 08:00, 13:00 and 17:00, checks each new business&apos;s website, looks on their own site for a public email
+              address, and audits new websites at midday. You don&apos;t need to press anything. You can still search yourself any time:
+            </p>
+            <p>
               <Go href="/admin/clients/find">Find clients</Go> has three ways to add businesses (called <em>prospects</em>):
             </p>
             <Table
@@ -402,12 +407,14 @@ export default async function ClientsGuidePage() {
           <Section id="outreach" title="5. Reaching out">
             <p>
               <strong>Automatic emails.</strong> Once email is set up (see the Automatic email row in{" "}
-              <Go href="/admin/clients/settings#autosend">Prospector settings</Go>), every Qualified prospect that has a public business
-              email and has never been contacted gets one email, sent from your address on weekdays during working hours, up to your daily
+              <Go href="/admin/clients/settings#autosend">Prospector settings</Go>), every prospect that has a public business
+              email and has never been contacted gets one email (best scores first), sent from your address on weekdays during working hours, up to your daily
               limit (10 to start). Each email is personal to that business (it only mentions facts recorded about it), has a working
               unsubscribe link, and replies come straight to your inbox. Sent emails show up on the prospect&apos;s page and move them to
               Contacted, with follow-up reminders. Anyone who unsubscribes, bounces or marks it as spam is put on the do-not-contact list
-              automatically. People who asked for a free audit are never emailed automatically: they get your personal reply.
+              automatically. People who asked for a free audit are never emailed automatically: they get your personal reply. To keep every
+              email truthful, it never writes about a website the system only guessed belongs to them, and if they have a working site it
+              waits for that site&apos;s audit first.
             </p>
             <p>
               <strong>WhatsApp messages are prepared, never sent for you.</strong> For prospects with a Nigerian mobile number and no email,
@@ -503,7 +510,7 @@ export default async function ClientsGuidePage() {
                 [
                   "~08:00, ~13:00, ~17:00",
                   <>
-                    Your <strong>scheduled searches</strong> run (set them up at the bottom of{" "}
+                    The <strong>Autopilot</strong> searches the next city × industry, your <strong>scheduled searches</strong> run (set them up at the bottom of{" "}
                     <Go href="/admin/clients/settings">Prospector settings</Go>: area, industry, how often, and which time slots).
                     Waiting checks and audits are worked through, then a share of the day&apos;s automatic emails is sent and new WhatsApp
                     messages are prepared.

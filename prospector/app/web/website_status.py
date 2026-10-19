@@ -11,8 +11,10 @@ Statuses (see the WebsiteStatus enum):
 
 from __future__ import annotations
 
+import re
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -28,6 +30,8 @@ class StatusResult:
     evidence: str
     website: str | None = None
     fetches: int = 0
+    # Public business emails found on the business's own site.
+    emails: list[str] = field(default_factory=list)
 
 
 def page_names_business(html: str, name: str) -> tuple[bool, str]:
@@ -53,6 +57,62 @@ def page_names_business(html: str, name: str) -> tuple[bool, str]:
     return False, ""
 
 
+_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}\b")
+FREE_MAIL = {"gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com", "outlook.com", "hotmail.com", "live.com", "icloud.com", "aol.com"}
+_SKIP_LOCAL = ("noreply", "no-reply", "donotreply", "do-not-reply", "mailer-daemon", "postmaster", "example", "test", "user", "username", "yourname", "email", "name")
+_SKIP_DOMAIN = ("example.com", "domain.com", "email.com", "sentry.io", "wixpress.com", "sentry-next.wixpress.com", "godaddy.com")
+
+
+def _site_domain(url: str) -> str:
+    host = (urlsplit(url).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def extract_emails(html: str, site_url: str) -> list[str]:
+    """Public business emails published on the business's own site.
+
+    Only addresses on the site's own domain, or a free-mail address
+    (Gmail, Yahoo…) that small businesses commonly use. Ignores the web
+    designer's address, placeholders, no-reply and tracking addresses."""
+    site = _site_domain(site_url)
+    soup = BeautifulSoup(html[:600_000], "html.parser")
+    found: list[str] = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if href.lower().startswith("mailto:"):
+            found.append(href[7:].split("?")[0])
+    found.extend(_EMAIL.findall(soup.get_text(" ", strip=True)[:200_000]))
+    out: list[str] = []
+    for raw in found:
+        email = raw.strip().strip(".,;:").lower()
+        if not _EMAIL.fullmatch(email):
+            continue
+        local, domain = email.split("@", 1)
+        if domain.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")):
+            continue  # image file names like logo@2x.png
+        if any(local == s or local.startswith(s) for s in _SKIP_LOCAL) or domain in _SKIP_DOMAIN:
+            continue
+        own = bool(site) and (domain == site or domain.endswith("." + site) or site.endswith("." + domain))
+        if own or domain in FREE_MAIL:
+            if email not in out:
+                out.append(email)
+    # Prefer the site's own domain.
+    return sorted(out, key=lambda e: 0 if e.split("@", 1)[1] not in FREE_MAIL else 1)[:3]
+
+
+def contact_page(html: str, base_url: str) -> str | None:
+    """A same-site link to the contact page, if the homepage has one."""
+    site = _site_domain(base_url)
+    soup = BeautifulSoup(html[:300_000], "html.parser")
+    for a in soup.find_all("a", href=True):
+        label = (a.get_text(" ", strip=True) + " " + a["href"]).lower()
+        if "contact" in label:
+            url = urljoin(base_url, a["href"])
+            if url.startswith(("http://", "https://")) and _site_domain(url) == site and url.rstrip("/") != base_url.rstrip("/"):
+                return url
+    return None
+
+
 def check_listed_website(name: str, url: str, *, fetch=safe_get) -> StatusResult:
     try:
         result = fetch(url, max_bytes=600_000, deadline_s=20.0)
@@ -62,14 +122,30 @@ def check_listed_website(name: str, url: str, *, fetch=safe_get) -> StatusResult
         return StatusResult("UNCERTAIN", f"Listed website {url} could not be loaded: {exc}.", url, 1)
     if result.status >= 400:
         return StatusResult("UNCERTAIN", f"Listed website {url} returned HTTP {result.status}.", result.final_url, 1)
+
+    # The business listed this site, so a public email on it is theirs to be contacted on.
+    fetches = 1
+    emails = extract_emails(result.text, result.final_url)
+    if not emails:
+        page = contact_page(result.text, result.final_url)
+        if page:
+            fetches += 1
+            try:
+                contact = fetch(page, max_bytes=400_000, deadline_s=15.0)
+                if contact.status < 400:
+                    emails = extract_emails(contact.text, contact.final_url)
+            except (FetchError, UnsafeUrl):
+                pass
+
     matched, where = page_names_business(result.text, name)
     if matched:
-        return StatusResult("VERIFIED", f"{result.final_url} loads and names the business in its {where}.", result.final_url, 1)
+        return StatusResult("VERIFIED", f"{result.final_url} loads and names the business in its {where}.", result.final_url, fetches, emails)
     return StatusResult(
         "FOUND_UNVERIFIED",
         f"{result.final_url} loads (HTTP {result.status}) but its homepage doesn't clearly name “{name}”.",
         result.final_url,
-        1,
+        fetches,
+        emails,
     )
 
 
