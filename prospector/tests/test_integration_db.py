@@ -97,7 +97,7 @@ def test_draft_approve_send_is_idempotent_and_schedules_followups(conn, settings
     # Follow-up drafts now reference the logged message.
     follow = crm.create_draft(conn, settings, pid, "follow_up")
     conn.commit()
-    assert "following up on the message I sent" in follow["body"]
+    assert ("sent a message on" in follow["body"]) or ("my message from" in follow["body"])
 
 
 def test_do_not_contact_blocks_outreach_and_suppresses_future_finds(conn, settings):

@@ -163,7 +163,7 @@ const FLOW = [
   { title: "Check", text: "See whether each one has a working website." },
   { title: "Audit", text: "Look at the website's real problems." },
   { title: "Score", text: "Rank who most likely needs your help." },
-  { title: "Reach out", text: "Approve a fact-based message and send it yourself." },
+  { title: "Reach out", text: "Emails go out automatically; WhatsApp messages wait for you to send." },
   { title: "Follow up & win", text: "Get reminders, log replies, track the deal." },
 ];
 
@@ -217,7 +217,8 @@ export default async function ClientsGuidePage() {
             <p>
               This part of your dashboard helps you find local businesses that need a website (or a better one), and keeps track of
               every conversation until they become a client. Every business, website status and number comes from a real source:
-              nothing is made up, and <strong>nothing is ever sent to anyone automatically</strong>. You always send messages yourself.
+              nothing is made up. <strong>Emails</strong> to qualified businesses can go out automatically (within a small daily limit, once
+              email is set up); <strong>WhatsApp messages</strong> are only ever prepared, and you send them yourself.
             </p>
             <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {FLOW.map((step, i) => (
@@ -399,7 +400,23 @@ export default async function ClientsGuidePage() {
           </Section>
 
           <Section id="outreach" title="5. Reaching out">
-            <p>Messages are drafted for you but always sent by you, from your own email or WhatsApp:</p>
+            <p>
+              <strong>Automatic emails.</strong> Once email is set up (see the Automatic email row in{" "}
+              <Go href="/admin/clients/settings#autosend">Prospector settings</Go>), every Qualified prospect that has a public business
+              email and has never been contacted gets one email, sent from your address on weekdays during working hours, up to your daily
+              limit (10 to start). Each email is personal to that business (it only mentions facts recorded about it), has a working
+              unsubscribe link, and replies come straight to your inbox. Sent emails show up on the prospect&apos;s page and move them to
+              Contacted, with follow-up reminders. Anyone who unsubscribes, bounces or marks it as spam is put on the do-not-contact list
+              automatically. People who asked for a free audit are never emailed automatically: they get your personal reply.
+            </p>
+            <p>
+              <strong>WhatsApp messages are prepared, never sent for you.</strong> For prospects with a Nigerian mobile number and no email,
+              a short, natural message is written and placed under{" "}
+              <Go href="/admin/clients/outreach?status=approved">Outreach → Ready to send</Go>. Click <strong>Open in WhatsApp</strong>,
+              check it, send it from your phone, then click <strong>I sent it</strong>. (The system can&apos;t see whether a number is on
+              WhatsApp; if a chat doesn&apos;t open, that number isn&apos;t.)
+            </p>
+            <p>For anyone else, or to write a different message yourself:</p>
             <Steps
               items={[
                 <>
@@ -423,13 +440,13 @@ export default async function ClientsGuidePage() {
               ]}
             />
             <p>
-              <Go href="/admin/clients/outreach">Outreach</Go> shows every draft by status (to approve, approved but not sent, sent,
-              rejected), so nothing gets forgotten. Your name and contact line at the bottom of each message are set in{" "}
+              <Go href="/admin/clients/outreach">Outreach</Go> shows what was sent today and every message by status (to approve, ready to
+              send, sent, rejected), and has a <strong>Run now</strong> button. Your name and contact line at the bottom of each message are set in{" "}
               <Go href="/admin/clients/settings">Prospector settings</Go>.
             </p>
             <Tip tone="warning">
-              Only contact businesses through the public channels they listed, and stop if they ask you to. Email drafts include a
-              line telling them they can ask not to be contacted again.
+              Only contact businesses through the public channels they listed, and stop if they ask you to. Keep the daily email limit
+              low at first: sending a lot from a new address is the fastest way to end up in spam folders.
             </Tip>
           </Section>
 
@@ -484,11 +501,12 @@ export default async function ClientsGuidePage() {
               head={["When (Lagos time, roughly)", "What happens"]}
               rows={[
                 [
-                  "~07:00, ~13:00, ~19:00",
+                  "~08:00, ~13:00, ~17:00",
                   <>
                     Your <strong>scheduled searches</strong> run (set them up at the bottom of{" "}
                     <Go href="/admin/clients/settings">Prospector settings</Go>: area, industry, how often, and which time slots).
-                    Waiting checks and audits are worked through too.
+                    Waiting checks and audits are worked through, then a share of the day&apos;s automatic emails is sent and new WhatsApp
+                    messages are prepared.
                   </>,
                 ],
                 [
@@ -501,8 +519,8 @@ export default async function ClientsGuidePage() {
               ]}
             />
             <p>
-              Times can drift by up to an hour (a limit of the free hosting plan). New prospects from scheduled searches simply appear
-              in your list; nothing is ever sent.
+              Times can drift by up to an hour (a limit of the free hosting plan). Emails only go out inside your sending window
+              (weekdays, 08:00–19:00 Lagos time by default); WhatsApp messages are never sent automatically.
             </p>
             <p>
               <strong>Daily limits</strong> keep usage of the free services polite and stop a mistake from running away: currently{" "}

@@ -20,6 +20,9 @@ DEFAULTS: dict[str, Any] = {
         "site_fetch_per_day": 1500,
         "pagespeed_per_day": 150,
         "ai_per_day": 0,
+        # Automatic outreach emails per day (kept low while the sending
+        # domain builds a reputation).
+        "email_send_per_day": 10,
         # Job size caps.
         "max_discovery_batch": 150,
         "max_audit_batch": 30,
@@ -77,6 +80,19 @@ DEFAULTS: dict[str, Any] = {
         "contact_line": "WhatsApp: +234 906 560 6430",
     },
     "ai": {"provider": "none"},
+    # Automatic outreach. Emails only go to QUALIFIED prospects with a public
+    # business email who have never been contacted; WhatsApp messages are
+    # only ever prepared, never sent (you send them yourself).
+    "autosend": {
+        "email_enabled": True,
+        "whatsapp_drafts": True,
+        # Also prepare WhatsApp messages for "Needs review" prospects.
+        "whatsapp_include_review": False,
+        # Lagos time; emails only go out inside this window.
+        "window_start_hour": 8,
+        "window_end_hour": 19,
+        "weekdays_only": True,
+    },
     # Saved discovery searches run automatically by the scheduler.
     "schedules": [],
 }

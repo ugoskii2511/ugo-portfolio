@@ -5,9 +5,9 @@
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
   "crons": [
-    { "path": "/cron/tick?slot=morning", "schedule": "0 6 * * *" },
+    { "path": "/cron/tick?slot=morning", "schedule": "0 7 * * *" },
     { "path": "/cron/tick?slot=midday", "schedule": "0 12 * * *" },
-    { "path": "/cron/tick?slot=evening", "schedule": "0 18 * * *" },
+    { "path": "/cron/tick?slot=evening", "schedule": "0 16 * * *" },
     { "path": "/cron/daily", "schedule": "30 2 * * *" }
   ]
 }

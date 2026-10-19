@@ -26,6 +26,18 @@ class Config:
     user_agent: str
     contact_url: str
     portfolio_url: str
+    # Automatic email (Resend). Sending stays off until all three are set.
+    resend_api_key: str | None = None
+    # e.g. "Ugochukwu Chukwu Christian <hello@ugobuildsweb.name.ng>" (a domain verified in Resend)
+    outreach_from: str | None = None
+    # Signs unsubscribe links; the website needs the same value to verify them.
+    outreach_secret: str | None = None
+    # Where replies go; defaults to the site's contact email.
+    outreach_reply_to: str | None = None
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.resend_api_key and self.outreach_from and self.outreach_secret)
 
 
 def load_config() -> Config:
@@ -42,6 +54,10 @@ def load_config() -> Config:
         or "",
         contact_url=f"{portfolio}/contact",
         portfolio_url=portfolio,
+        resend_api_key=_env("RESEND_API_KEY"),
+        outreach_from=_env("OUTREACH_FROM"),
+        outreach_secret=_env("OUTREACH_SECRET"),
+        outreach_reply_to=_env("OUTREACH_REPLY_TO"),
     )
 
 

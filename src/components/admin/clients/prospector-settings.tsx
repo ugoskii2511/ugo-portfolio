@@ -22,6 +22,14 @@ type Settings = {
   retention: { archive_uncontacted_after_days: number; delete_archived_after_days: number };
   outreach: { sender_name: string; sender_title: string; contact_line: string };
   audit: { use_pagespeed: boolean; max_links_checked: number };
+  autosend: {
+    email_enabled: boolean;
+    whatsapp_drafts: boolean;
+    whatsapp_include_review: boolean;
+    window_start_hour: number;
+    window_end_hour: number;
+    weekdays_only: boolean;
+  };
   schedules: Schedule[];
 };
 
@@ -46,6 +54,7 @@ const LIMIT_LABELS: Record<string, string> = {
   nominatim_per_day: "Location lookups / day",
   site_fetch_per_day: "Website requests / day",
   pagespeed_per_day: "PageSpeed tests / day",
+  email_send_per_day: "Automatic emails / day",
   max_discovery_batch: "Max prospects per search",
   max_audit_batch: "Max sites per audit run",
 };
@@ -67,9 +76,9 @@ const WEIGHT_LABELS: Record<string, string> = {
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const SLOTS = [
-  { value: "morning", label: "Morning (~07:00)" },
+  { value: "morning", label: "Morning (~08:00)" },
   { value: "midday", label: "Midday (~13:00)" },
-  { value: "evening", label: "Evening (~19:00)" },
+  { value: "evening", label: "Evening (~17:00)" },
 ];
 
 function useSave() {
@@ -126,6 +135,9 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
   const [retention, setRetention] = useState(initial.settings.retention);
   const [outreach, setOutreach] = useState(initial.settings.outreach);
   const [audit, setAudit] = useState(initial.settings.audit);
+  const [autosend, setAutosend] = useState(
+    initial.settings.autosend ?? { email_enabled: true, whatsapp_drafts: true, whatsapp_include_review: false, window_start_hour: 8, window_end_hour: 19, weekdays_only: true }
+  );
   const [schedules, setSchedules] = useState<Schedule[]>(initial.settings.schedules ?? []);
   const i = initial.integrations;
 
@@ -135,7 +147,14 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
     { label: "Google PageSpeed", ok: i.pagespeedKey, detail: i.pagespeedKey ? "API key set" : "No API key. Tests are often rate-limited; add PAGESPEED_API_KEY on the prospector project" },
     { label: "Scheduler", ok: i.cron, detail: i.cron ? "Vercel Cron is authorised" : "CRON_SECRET not set, so scheduled searches won't run" },
     { label: "AI writing", ok: false, detail: "Not configured: drafts use your fact-based templates" },
-    { label: "Email sending", ok: false, detail: "Manual: you send messages yourself and log them" },
+    {
+      label: "Automatic email (Resend)",
+      ok: i.email === "resend",
+      detail:
+        i.email === "resend"
+          ? "Connected: qualified prospects with an email are contacted automatically within your daily limit"
+          : "Not set up: add RESEND_API_KEY, OUTREACH_FROM and OUTREACH_SECRET to the prospector project. Until then, nothing is emailed",
+    },
   ];
 
   return (
@@ -260,6 +279,41 @@ export function ProspectorSettings({ initial }: { initial: SettingsPayload }) {
             <input id="o-c" maxLength={200} value={outreach.contact_line} onChange={(e) => setOutreach({ ...outreach, contact_line: e.target.value })} className="field" />
           </Field>
         </Section>
+
+        <div id="autosend" className="scroll-mt-24 lg:col-span-2">
+          <Section
+            title="Automatic outreach"
+            description="Emails go only to Qualified prospects with a public business email who have never been contacted. WhatsApp messages are prepared for you to send yourself; nothing is ever sent on WhatsApp automatically."
+            onSave={() => save("autosend", autosend)}
+            saving={saving === "autosend"}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Send emails automatically</span>
+              <Switch checked={autosend.email_enabled} onChange={(v) => setAutosend({ ...autosend, email_enabled: v })} label="Send emails automatically" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Prepare WhatsApp messages for prospects without an email</span>
+              <Switch checked={autosend.whatsapp_drafts} onChange={(v) => setAutosend({ ...autosend, whatsapp_drafts: v })} label="Prepare WhatsApp messages" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Also prepare WhatsApp messages for “Needs review” prospects</span>
+              <Switch checked={autosend.whatsapp_include_review} onChange={(v) => setAutosend({ ...autosend, whatsapp_include_review: v })} label="Include Needs review prospects" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Weekdays only</span>
+              <Switch checked={autosend.weekdays_only} onChange={(v) => setAutosend({ ...autosend, weekdays_only: v })} label="Send on weekdays only" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Send emails from (hour, Lagos time)" htmlFor="as-start">
+                <input id="as-start" type="number" min={0} max={23} value={autosend.window_start_hour} onChange={(e) => setAutosend({ ...autosend, window_start_hour: Number(e.target.value) })} className="field" />
+              </Field>
+              <Field label="Until (hour, Lagos time)" htmlFor="as-end">
+                <input id="as-end" type="number" min={1} max={24} value={autosend.window_end_hour} onChange={(e) => setAutosend({ ...autosend, window_end_hour: Number(e.target.value) })} className="field" />
+              </Field>
+            </div>
+            <p className="text-xs text-muted">The daily email limit is under “Daily limits” (Automatic emails / day). The scheduler runs around 08:00, 13:00 and 17:00 Lagos time and sends a share of the limit each time.</p>
+          </Section>
+        </div>
 
         <Section title="Audits" onSave={() => save("audit", audit)} saving={saving === "audit"}>
           <div className="flex items-center justify-between gap-3">

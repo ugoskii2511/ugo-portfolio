@@ -5,13 +5,14 @@ import { Send } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { EmptyState, PageHeader } from "@/components/admin/ui";
 import { DraftCard } from "@/components/admin/clients/prospect-workspace";
-import { prospectorConfigured } from "@/lib/prospector";
+import { callProspector, prospectorConfigured } from "@/lib/prospector";
+import { AutoOutreachPanel, type OutreachStatus } from "@/components/admin/clients/auto-outreach-panel";
 
 export const metadata: Metadata = { title: "Outreach" };
 
 const TABS = [
   { value: "draft", label: "To approve" },
-  { value: "approved", label: "Approved, not sent" },
+  { value: "approved", label: "Ready to send" },
   { value: "sent", label: "Sent" },
   { value: "rejected", label: "Rejected" },
 ] as const;
@@ -30,14 +31,24 @@ export default async function OutreachPage({ searchParams }: { searchParams: Pro
   ]);
   const count = Object.fromEntries(counts.map((c) => [c.status, c._count])) as Record<string, number>;
   const configured = prospectorConfigured();
+  let outreach: OutreachStatus | null = null;
+  let outreachError = configured ? undefined : "The prospector service isn't connected.";
+  if (configured) {
+    try {
+      outreach = await callProspector<OutreachStatus>("/outreach/status", { timeoutMs: 15000 });
+    } catch (err) {
+      outreachError = err instanceof Error ? err.message : "Couldn't load the outreach status.";
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Clients"
         title="Outreach"
-        description="Nothing is sent automatically. Approve a draft, send it yourself by email or WhatsApp, then log it so follow-ups are scheduled."
+        description="Qualified prospects with an email are emailed automatically (within your daily limit). WhatsApp messages are prepared under “Ready to send”: open each one in WhatsApp, send it, then click “I sent it”."
       />
+      <AutoOutreachPanel status={outreach} error={outreachError} />
       <nav aria-label="Draft status" className="inline-flex max-w-full flex-wrap gap-1 self-start rounded-full border border-line bg-white/[0.02] p-1">
         {TABS.map((tab) => (
           <Link

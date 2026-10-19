@@ -66,19 +66,20 @@ def test_new_website_draft_uses_only_recorded_facts():
     assert draft.template == "school_website"
     assert draft.channel == "whatsapp"
     assert "Sunrise Academy" in draft.body
-    assert "OpenStreetMap" in draft.body
+    assert "couldn't find a website" in draft.body
     assert "https://ugobuildsweb.name.ng/work/prudential-international-school" in draft.body
-    # No statistics or invented numbers beyond contact details.
-    body_without_contact = draft.body.split("Best regards")[0]
-    assert not re.search(r"\d+\s*%", body_without_contact)
+    # No statistics or invented numbers.
+    assert not re.search(r"\d+\s*%", draft.body)
     assert {f["fact"] for f in draft.facts} >= {"source", "website_status", "portfolio_link"}
+    # The source fact still records exactly where the business was found.
+    assert any(f["fact"] == "source" and "openstreetmap.org" in (f["value"] or "") for f in draft.facts)
 
 
 def test_redesign_draft_cites_actual_finding():
     prospect = {**NO_SITE, "website": "https://biz.ng/", "websiteDomain": "biz.ng", "websiteStatus": "VERIFIED", "email": "info@biz.ng"}
     findings = [{"key": "meta_description", "label": "Meta description", "status": "fail", "priority": "medium", "evidence": "No meta description.", "service": "SEO"}]
     draft = build_draft(prospect, findings, SETTINGS, template="redesign")
-    assert "meta description" in draft.body
+    assert "no description for Google" in draft.body
     assert draft.channel == "email" and draft.subject
     assert "won't contact you again" in draft.body
     assert any(f["fact"] == "audit:meta_description" for f in draft.facts)
@@ -99,6 +100,28 @@ def test_drafts_refuse_unsupported_claims():
 def test_follow_up_references_logged_message_date():
     draft = build_draft(NO_SITE, None, SETTINGS, template="follow_up", last_outreach={"createdAt": datetime(2026, 10, 3, tzinfo=timezone.utc)})
     assert "3 October" in draft.body
+
+
+def test_messages_vary_per_business_but_are_stable():
+    bodies = set()
+    for i in range(12):
+        p = {**NO_SITE, "id": f"p{i}", "businessName": f"School {i}", "industry": "Retail"}
+        a = build_draft(p, None, SETTINGS, template="new_website")
+        b = build_draft(p, None, SETTINGS, template="new_website")
+        assert a.body == b.body  # same business, same wording every time
+        bodies.add(a.body.replace(f"School {i}", "X"))
+    assert len(bodies) > 3  # different businesses get different wording
+
+
+def test_whatsapp_is_short_and_email_has_optout():
+    both = {**NO_SITE, "id": "x1", "email": "info@sunrise.ng"}
+    wa = build_draft(both, None, SETTINGS, channel="whatsapp")
+    em = build_draft(both, None, SETTINGS, channel="email", unsubscribe_url="https://ugobuildsweb.name.ng/unsubscribe?p=x1&t=abc")
+    assert wa.subject is None and len(wa.body) < 900 and "Best regards" not in wa.body
+    assert "won't message again" in wa.body or "won't bother you again" in wa.body
+    assert em.subject and "https://ugobuildsweb.name.ng/unsubscribe?p=x1&t=abc" in em.body
+    with pytest.raises(DraftError, match="no email"):
+        build_draft(NO_SITE, None, SETTINGS, channel="email")
 
 
 def test_suggest_template():

@@ -14,6 +14,7 @@ PROVIDERS = {
     "site_fetch": "site_fetch_per_day",
     "pagespeed": "pagespeed_per_day",
     "ai": "ai_per_day",
+    "email_send": "email_send_per_day",
 }
 
 

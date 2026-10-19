@@ -13,7 +13,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app import crm, jobs
+from app import autosend, crm, jobs
 from app.db import DatabaseNotConfigured, Json, connect, execute, fetch_one, new_id
 from app.intake import IntakeError, create_manual, import_csv, inbound_audit_request
 from app.outreach import DraftError, TEMPLATES
@@ -250,7 +250,7 @@ def get_settings(_actor: str = Depends(require_admin)):
                 "pagespeedKey": bool(config.pagespeed_api_key),
                 "cron": bool(config.cron_secret),
                 "ai": settings["ai"].get("provider", "none"),
-                "email": "manual",
+                "email": "resend" if config.email_configured else "not_configured",
             },
         }
 
@@ -304,6 +304,15 @@ def _validate_setting(key: str, value: Any) -> None:
     elif key == "retention":
         if not isinstance(value, dict) or any(not isinstance(v, int) or not 0 <= v <= 3650 for v in value.values()):
             raise HTTPException(status_code=400, detail="Retention periods must be whole days from 0 to 3650")
+    elif key == "autosend":
+        if not isinstance(value, dict):
+            raise HTTPException(status_code=400, detail="Invalid automatic outreach settings")
+        for flag in ("email_enabled", "whatsapp_drafts", "whatsapp_include_review", "weekdays_only"):
+            if flag in value and not isinstance(value[flag], bool):
+                raise HTTPException(status_code=400, detail=f"{flag} must be on or off")
+        start, end = value.get("window_start_hour", 8), value.get("window_end_hour", 19)
+        if not all(isinstance(h, int) and 0 <= h <= 24 for h in (start, end)) or start >= end:
+            raise HTTPException(status_code=400, detail="The sending window must run from an earlier hour to a later one (0–24)")
     elif key == "outreach":
         if not isinstance(value, dict) or any(not isinstance(v, str) or len(v) > 200 for v in value.values()):
             raise HTTPException(status_code=400, detail="Signature fields must be short text")
@@ -317,8 +326,54 @@ def _validate_setting(key: str, value: Any) -> None:
 @app.get("/cron/tick")
 def cron_tick(slot: str = "morning", _=Depends(require_cron)):
     created = jobs.enqueue_scheduled(slot)
-    worked = jobs.work_queue(budget_s=50.0)
-    return {"scheduled": created, "worked": worked}
+    worked = jobs.work_queue(budget_s=40.0)
+    # Then outreach: a share of today's email cap, and WhatsApp messages prepared.
+    with connect() as conn:
+        settings = _settings_with_portfolio(conn)
+        outreach = autosend.run(conn, settings, max_emails=autosend.tick_quota(settings))
+    return {"scheduled": created, "worked": worked, "outreach": {k: len(v) if isinstance(v, list) and k != "notes" else v for k, v in outreach.items()}}
+
+
+# ------------------------------------------------------------ auto outreach
+
+
+@app.get("/outreach/status")
+def outreach_status(_actor: str = Depends(require_admin)):
+    from datetime import datetime, timezone
+
+    with connect() as conn:
+        settings = load_settings(conn)
+        open_window, why = autosend.in_window(settings, datetime.now(timezone.utc))
+        whatsapp_ready = fetch_one(
+            conn,
+            'SELECT count(*) AS n FROM "OutreachDraft" d JOIN "Prospect" p ON p.id = d."prospectId" '
+            "WHERE d.channel = 'whatsapp' AND d.status = 'approved' AND p.\"doNotContact\" = false",
+        )["n"]
+        waiting = len(autosend.email_candidates(conn, 500))
+        return {
+            "configured": config.email_configured,
+            "settings": settings["autosend"],
+            "dailyCap": settings["limits"].get("email_send_per_day", 0),
+            "sentToday": autosend.sent_today(conn),
+            "windowOpen": open_window,
+            "windowNote": why,
+            "emailQueue": waiting,
+            "whatsappReady": whatsapp_ready,
+        }
+
+
+class OutreachRunIn(BaseModel):
+    # A manual run from the dashboard may ignore the time window; the daily cap always applies.
+    ignoreWindow: bool = False
+
+
+@app.post("/outreach/run")
+def outreach_run(body: OutreachRunIn, actor: str = Depends(require_admin)):
+    with connect() as conn:
+        settings = _settings_with_portfolio(conn)
+        result = autosend.run(conn, settings, respect_window=not body.ignoreWindow)
+        _audit(conn, actor, "outreach.run", None, {"emailed": len(result["emailed"]), "whatsappReady": len(result["whatsappReady"]), "ignoreWindow": body.ignoreWindow})
+    return result
 
 
 @app.get("/cron/daily")
