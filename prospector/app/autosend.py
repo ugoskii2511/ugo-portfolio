@@ -26,7 +26,7 @@ from app import crm
 from app.config import config
 from app.db import Json, execute, fetch_all, fetch_one, new_id
 from app.mailer import MailError, MailUnavailable, send_email, unsubscribe_url
-from app.outreach import DraftError, build_draft
+from app.outreach import PORTFOLIO_PROJECTS, DraftError, build_draft
 from app.prospects import is_suppressed, log_event
 from app.usage import UsageLimitReached, limit_for, try_consume
 
@@ -95,6 +95,14 @@ def whatsapp_candidates(conn, settings: dict, limit: int) -> list[dict]:
     return [r for r in rows if is_ng_mobile(r["phone"])][:limit]
 
 
+def email_assets(conn) -> dict:
+    """Screenshots for the recent-work card and the WhatsApp number for the button."""
+    ids = [pid for _, pid in PORTFOLIO_PROJECTS.values()]
+    images = {r["id"]: r["imageUrl"] for r in fetch_all(conn, 'SELECT id, "imageUrl" FROM "Project" WHERE id = ANY(%s) AND "imageUrl" IS NOT NULL', (ids,))}
+    row = fetch_one(conn, 'SELECT "whatsappNumber" FROM "SiteSettings" WHERE id = %s', ("singleton",))
+    return {"images": images, "whatsapp": (row or {}).get("whatsappNumber")}
+
+
 def _insert_draft(conn, prospect_id: str, draft, status: str) -> str:
     draft_id = new_id()
     execute(
@@ -128,13 +136,14 @@ def run(conn, settings: dict, *, now: datetime | None = None, max_emails: int | 
             summary["notes"].append(f"Today's limit of {cap} automatic emails has been reached.")
         else:
             reply_to = _reply_to(conn)
+            assets = email_assets(conn)
             for prospect in email_candidates(conn, quota):
                 if is_suppressed(conn, prospect):
                     summary["skipped"].append({"id": prospect["id"], "reason": "on the do-not-contact list"})
                     continue
                 try:
                     unsub = unsubscribe_url(prospect["id"])
-                    draft = build_draft(prospect, crm.latest_findings(conn, prospect["id"]), settings, channel="email", unsubscribe_url=unsub)
+                    draft = build_draft(prospect, crm.latest_findings(conn, prospect["id"]), settings, channel="email", unsubscribe_url=unsub, assets=assets)
                 except (DraftError, MailUnavailable) as exc:
                     summary["skipped"].append({"id": prospect["id"], "reason": str(exc)})
                     continue
@@ -153,6 +162,7 @@ def run(conn, settings: dict, *, now: datetime | None = None, max_emails: int | 
                         reply_to=reply_to,
                         unsubscribe=unsub,
                         idempotency_key=f"outreach-{draft_id}",
+                        html_body=draft.html,
                     )
                 except MailError as exc:
                     execute(conn, 'UPDATE "OutreachDraft" SET status = %s, "updatedAt" = now() WHERE id = %s', ("rejected", draft_id))

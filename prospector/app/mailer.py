@@ -63,6 +63,7 @@ def send_email(
     reply_to: str | None,
     unsubscribe: str,
     idempotency_key: str,
+    html_body: str | None = None,
     client: httpx.Client | None = None,
 ) -> str:
     """Send one email. Returns the provider's message id."""
@@ -73,7 +74,7 @@ def send_email(
         "to": [to],
         "subject": subject,
         "text": text,
-        "html": to_html(text),
+        "html": html_body or to_html(text),
         "headers": {
             "List-Unsubscribe": f"<{unsubscribe}>",
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

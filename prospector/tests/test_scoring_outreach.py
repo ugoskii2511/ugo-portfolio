@@ -141,3 +141,17 @@ def test_job_params_are_validated_and_capped():
         validate_params("audit", {"prospectIds": [str(i) for i in range(1000)]}, SETTINGS)
     with pytest.raises(JobError):
         validate_params("nuke", {}, SETTINGS)
+
+
+def test_email_html_is_safe_and_complete():
+    p = {**NO_SITE, "id": "h1", "email": "info@sunrise.ng", "businessName": "Sunrise <Academy> & Co"}
+    assets = {"images": {"cmsa2z61z00003lfcdawvae1r": "https://img.example/s.jpg"}, "whatsapp": "2349065606430"}
+    d = build_draft(p, None, SETTINGS, channel="email", unsubscribe_url="https://ugobuildsweb.name.ng/unsubscribe?p=h1&t=x", assets=assets)
+    assert d.html and "<script" not in d.html.lower()
+    assert "Sunrise &lt;Academy&gt; &amp; Co" in d.html  # business names are escaped
+    assert "https://img.example/s.jpg" in d.html and "Prudential International School" in d.html
+    assert "https://wa.me/2349065606430?text=" in d.html
+    assert "unsubscribe?p=h1" in d.html
+    # Without assets it still renders, just simpler.
+    plain = build_draft(p, None, SETTINGS, channel="email")
+    assert plain.html and "wa.me" not in plain.html and "<img" not in plain.html

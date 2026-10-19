@@ -18,6 +18,9 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from urllib.parse import quote
+
+from app.email_html import EmailParts, Project, Signature, render
 
 TEMPLATES = {
     "new_website": "New website",
@@ -42,6 +45,18 @@ PORTFOLIO = {
     "Logistics": ("/work/cometra-logistics", "a logistics company website I built"),
     "Beauty & wellness": ("/work/blackgold-barber", "a website I built for a grooming business"),
     "Professional services": ("/work/plot-one", "a website I built for an Abuja mortgage brokerage"),
+}
+
+# Project shown in the email's "recent work" card, by portfolio path:
+# (display name, Project row id whose screenshot is used).
+PORTFOLIO_PROJECTS = {
+    "/work/prudential-international-school": ("Prudential International School", "cmsa2z61z00003lfcdawvae1r"),
+    "/work/chimdys-collection": ("Chimdy’s Collection", "cmsntlq8w000704k0fvo93e37"),
+    "/work/naija-bites": ("Naija Bites", "cmu64j7ok000204gugrdvg1at"),
+    "/work/aurelle-properties": ("Aurelle Properties", "cmu64lfdh000304guytqh1fp9"),
+    "/work/cometra-logistics": ("Cometra Logistics", "cmu64d2va000104guhj2h4ndl"),
+    "/work/blackgold-barber": ("BlackGold Barber Co.", "cmu64qzh3000404gu7wn60fgu"),
+    "/work/plot-one": ("Plot One", "cmv2tt18d000004l3bbdvc4d7"),
 }
 
 # Plain-language observation for an audit finding (only used when that
@@ -73,6 +88,8 @@ class Draft:
     subject: str | None
     body: str
     facts: list[dict]
+    # Designed HTML version (emails only); the plain-text body is always sent too.
+    html: str | None = None
 
 
 def pick_channel(prospect: dict) -> str:
@@ -159,7 +176,10 @@ def build_draft(
     last_outreach: dict | None = None,
     channel: str | None = None,
     unsubscribe_url: str | None = None,
+    assets: dict | None = None,
 ) -> Draft:
+    """`assets` (optional, for the HTML email): {"images": {project_id: url},
+    "whatsapp": "2349…"}. Missing assets just mean a simpler layout."""
     if prospect.get("doNotContact") or prospect.get("stage") == "DO_NOT_CONTACT":
         raise DraftError("This prospect is on the do-not-contact list.")
     template = template or suggest_template(prospect, findings)
@@ -306,18 +326,48 @@ def build_draft(
     # Email
     o = settings["outreach"]
     greeting = pick(seed, "em_greet", [f"Hello {name} team,", f"Good day {name} team,", f"Hi {name} team,"])
+    closing = pick(seed, "em_close", ["Best regards,", "Kind regards,", "Thanks,"])
+    ask = _ask(seed, "email")
     signature = "\n".join(line for line in [o.get("sender_name"), o.get("sender_title") or "", portfolio_url, o.get("contact_line") or ""] if line)
     if unsubscribe_url:
         optout = f"You're getting this because {name}'s contact details are listed publicly. If you'd rather not hear from me, unsubscribe here: {unsubscribe_url} (or just reply “no thanks”)."
+        html_optout = f"You're getting this because {name}'s contact details are listed publicly. Not interested? Just reply “no thanks”, or"
     else:
-        optout = "If this isn't useful, just reply “no thanks” and I won't contact you again."
+        optout = html_optout = "If this isn't useful, just reply “no thanks” and I won't contact you again."
     body = "\n\n".join([
         greeting,
         *point,
         f"You can see {label} here: {link}",
-        _ask(seed, "email"),
-        pick(seed, "em_close", ["Best regards,", "Kind regards,", "Thanks,"]) + "\n" + signature,
+        ask,
+        closing + "\n" + signature,
         "—\n" + optout,
     ])
     subject = pick(seed, "subject", subject_options)
-    return Draft(template=template, channel="email", subject=subject, body=body, facts=facts)
+
+    assets = assets or {}
+    path = link[len(portfolio_url):] if link.startswith(portfolio_url) else link
+    project_name, project_id = PORTFOLIO_PROJECTS.get(path, (None, None))
+    whatsapp = assets.get("whatsapp")
+    whatsapp_url = (
+        f"https://wa.me/{whatsapp}?text=" + quote(f"Hi {first}, I got your email about {name}.") if whatsapp else None
+    )
+    html_body = render(
+        EmailParts(
+            preheader=point[0][:140],
+            greeting=greeting,
+            paragraphs=point,
+            project=Project(url=link, label=label, name=project_name, image=(assets.get("images") or {}).get(project_id)),
+            ask=ask,
+            closing=closing,
+            signature=Signature(
+                name=o.get("sender_name") or first,
+                title=o.get("sender_title") or "",
+                website=portfolio_url,
+                contact_line=o.get("contact_line") or "",
+                whatsapp_url=whatsapp_url,
+            ),
+            optout=html_optout,
+            unsubscribe_url=unsubscribe_url,
+        )
+    )
+    return Draft(template=template, channel="email", subject=subject, body=body, facts=facts, html=html_body)
