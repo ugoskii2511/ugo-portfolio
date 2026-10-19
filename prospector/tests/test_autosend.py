@@ -153,3 +153,17 @@ def test_autosend_rules_against_database(monkeypatch):
             # Give back the counter this test used, so real sending isn't affected.
             conn.execute('UPDATE "UsageCounter" SET count = GREATEST(count - %s, 0) WHERE provider = %s AND day = current_date', (autosend.sent_today(conn) - before, "email_send"))
             conn.commit()
+
+
+@db
+def test_outreach_status_endpoint_against_database(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import main, security
+
+    cfg = dataclasses.replace(security.config, api_secret="s3")
+    monkeypatch.setattr(security, "config", cfg)
+    r = TestClient(main.app).get("/outreach/status", headers={"Authorization": "Bearer s3"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert {"configured", "settings", "dailyCap", "sentToday", "windowOpen", "emailQueue", "whatsappReady"} <= set(body)

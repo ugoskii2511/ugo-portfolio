@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import autosend, crm, jobs
+from app.config import config
 from app.db import DatabaseNotConfigured, Json, connect, execute, fetch_one, new_id
 from app.intake import IntakeError, create_manual, import_csv, inbound_audit_request
 from app.outreach import DraftError, TEMPLATES

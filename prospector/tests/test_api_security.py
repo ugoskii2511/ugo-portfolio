@@ -30,6 +30,8 @@ def test_health_is_public_and_reveals_nothing():
         ("post", "/drafts/x/sent"),
         ("post", "/inbound/audit-request"),
         ("get", "/settings"),
+        ("get", "/outreach/status"),
+        ("post", "/outreach/run"),
         ("put", "/settings/limits"),
     ],
 )
