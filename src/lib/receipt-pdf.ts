@@ -177,7 +177,7 @@ export async function renderReceiptPdf(r: ReceiptSnapshot, opts: { voided?: { re
   text(c, money(r.payment.amountKobo), M + 16, y - 46, 22, { bold: true, color: GREEN });
   text(c, r.payment.description, M + 16, y - 66, 10, { bold: true });
   const rows: [string, string][] = [
-    ["Payment date", r.paymentDate],
+    ["Issue date", r.issueDate],
     ["Method", r.payment.methodLabel],
     ["Transaction ref.", r.payment.reference ?? "—"],
   ];

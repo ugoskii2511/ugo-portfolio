@@ -89,8 +89,8 @@ export function ReceiptDocument({ r, voided, preview }: { r: ReceiptSnapshot; vo
           <p className="mt-1 font-semibold">{r.payment.description}</p>
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 self-center text-xs">
-          <dt className="text-slate-500">Payment date</dt>
-          <dd className="text-right">{r.paymentDate}</dd>
+          <dt className="text-slate-500">Issue date</dt>
+          <dd className="text-right">{r.issueDate}</dd>
           <dt className="text-slate-500">Method</dt>
           <dd className="text-right">{r.payment.methodLabel}</dd>
           <dt className="text-slate-500">Transaction ref.</dt>
