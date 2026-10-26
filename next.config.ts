@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
     // The portfolio index moved to /work in the 2026 redesign.
     return [{ source: "/portfolio", destination: "/work", permanent: true }];
   },
+  // The receipt PDF route embeds these fonts (₦ glyph) and the default logo.
+  outputFileTracingIncludes: {
+    "/api/admin/receipts/**": ["./src/assets/fonts/*.ttf", "./public/logo.jpg"],
+  },
   experimental: {
     // Lets src/app/global-not-found.tsx handle URLs that don't match either
     // root layout ((marketing) or (dashboard)) — needed because this app has

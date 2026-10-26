@@ -49,7 +49,7 @@ test("payment status is derived from payments", () => {
   assert.equal(paymentStatus(500_000_00, 0), "UNPAID");
   assert.equal(paymentStatus(500_000_00, 200_000_00), "PARTIAL");
   assert.equal(paymentStatus(500_000_00, 500_000_00), "PAID");
-  assert.equal(paymentStatus(500_000_00, 600_000_00), "PAID");
+  assert.equal(paymentStatus(500_000_00, 600_000_00), "OVERPAID");
   assert.equal(paymentStatus(null, 100_00), "PARTIAL"); // price not agreed yet
   assert.equal(paymentStatus(null, 0), "UNPAID");
 });

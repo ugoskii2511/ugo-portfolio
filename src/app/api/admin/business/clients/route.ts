@@ -18,8 +18,14 @@ export function POST(request: NextRequest) {
             clientId: row.id,
             title: project.title,
             serviceType: project.serviceType,
-            description: project.description,
+            description: project.description,
             priceKobo: bigOrNull(project.price),
+
+            additionalChargesKobo: bigOrNull(project.additionalCharges),
+
+            discountKobo: bigOrNull(project.discount),
+
+            referenceNumber: project.referenceNumber,
             status: project.status,
             startDate: dayToDate(project.startDate),
             expectedDeliveryDate: dayToDate(project.expectedDeliveryDate),

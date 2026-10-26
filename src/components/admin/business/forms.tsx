@@ -81,6 +81,9 @@ export type ProjectValues = {
   serviceType: string;
   description: string;
   price: string;
+  additionalCharges: string;
+  discount: string;
+  referenceNumber: string;
   status: ProjectStatus;
   startDate: string;
   expectedDeliveryDate: string;
@@ -95,6 +98,9 @@ export const emptyProject = (): ProjectValues => ({
   serviceType: "",
   description: "",
   price: "",
+  additionalCharges: "",
+  discount: "",
+  referenceNumber: "",
   status: "INQUIRY",
   startDate: "",
   expectedDeliveryDate: "",
@@ -110,6 +116,11 @@ export type ProjectInitial = {
   serviceType: string | null;
   description: string | null;
   priceKobo: number | null;
+  /// Base price before charges / discount (priceKobo is the agreed total).
+  basePriceKobo?: number | null;
+  additionalChargesKobo?: number | null;
+  discountKobo?: number | null;
+  referenceNumber?: string | null;
   status: ProjectStatus;
   startDate: string | null;
   expectedDeliveryDate: string | null;
@@ -124,7 +135,10 @@ function projectValuesFrom(p: ProjectInitial): ProjectValues {
     title: p.title,
     serviceType: p.serviceType ?? "",
     description: p.description ?? "",
-    price: koboToInput(p.priceKobo),
+    price: koboToInput(p.basePriceKobo !== undefined ? p.basePriceKobo : p.priceKobo),
+    additionalCharges: koboToInput(p.additionalChargesKobo),
+    discount: koboToInput(p.discountKobo),
+    referenceNumber: p.referenceNumber ?? "",
     status: p.status,
     startDate: p.startDate ?? "",
     expectedDeliveryDate: p.expectedDeliveryDate ?? "",
@@ -141,6 +155,9 @@ function projectPayload(v: ProjectValues) {
     serviceType: v.serviceType || null,
     description: v.description || null,
     price: v.price || null,
+    additionalCharges: v.additionalCharges || null,
+    discount: v.discount || null,
+    referenceNumber: v.referenceNumber || null,
     status: v.status,
     startDate: v.startDate || null,
     expectedDeliveryDate: v.expectedDeliveryDate || null,
@@ -177,6 +194,17 @@ function ProjectFieldset({ values, set, idPrefix }: { values: ProjectValues; set
           </select>
         </Field>
       </Grid>
+      <details className="rounded-xl border border-line px-4 py-3" open={!!(values.additionalCharges || values.discount || values.referenceNumber)}>
+        <summary className="cursor-pointer text-xs text-muted">Extra charges, discount and project reference (optional)</summary>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <MoneyInput id={`${idPrefix}-charges`} label="Additional charges" value={values.additionalCharges} onChange={(additionalCharges) => set({ additionalCharges })} />
+          <MoneyInput id={`${idPrefix}-discount`} label="Discount" value={values.discount} onChange={(discount) => set({ discount })} />
+          <Field label="Project reference" htmlFor={`${idPrefix}-ref`}>
+            <input id={`${idPrefix}-ref`} maxLength={60} value={values.referenceNumber} onChange={(e) => set({ referenceNumber: e.target.value })} className="field" placeholder="e.g. PRJ-014" />
+          </Field>
+        </div>
+        <p className="mt-2 text-xs text-faint">Agreed total = price + additional charges − discount. Balances and receipts use the agreed total.</p>
+      </details>
       <Field label="Description and notes" htmlFor={`${idPrefix}-desc`}>
         <textarea id={`${idPrefix}-desc`} rows={3} maxLength={5000} value={values.description} onChange={(e) => set({ description: e.target.value })} className="field" />
       </Field>
@@ -236,7 +264,7 @@ export function ClientDialog({ open, onClose, client }: { open: boolean; onClose
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const problem = withProject ? moneyProblem(["Agreed price", project.price], ["Fee", project.maintenanceFee]) : "";
+    const problem = withProject ? moneyProblem(["Agreed price", project.price], ["Additional charges", project.additionalCharges], ["Discount", project.discount], ["Fee", project.maintenanceFee]) : "";
     if (problem) return setError(problem);
     const body = {
       name: values.name,
@@ -328,7 +356,7 @@ export function ProjectDialog({ open, onClose, clientId, project }: { open: bool
         className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
-          const problem = moneyProblem(["Agreed price", values.price], ["Fee", values.maintenanceFee]);
+          const problem = moneyProblem(["Agreed price", values.price], ["Additional charges", values.additionalCharges], ["Discount", values.discount], ["Fee", values.maintenanceFee]);
           if (problem) return setError(problem);
           submit(async () => {
             if (project) {
@@ -349,7 +377,20 @@ export function ProjectDialog({ open, onClose, clientId, project }: { open: bool
 
 // ---------------------------------------------------------------- payment dialog
 
-export type PaymentInitial = { id: string; projectId: string | null; clientId: string; kind: "PROJECT" | "MAINTENANCE"; amountKobo: number; paidOn: string; method: string; reference: string | null };
+export type PaymentInitial = {
+  id: string;
+  projectId: string | null;
+  clientId: string;
+  kind: "PROJECT" | "MAINTENANCE";
+  amountKobo: number;
+  paidOn: string;
+  method: string;
+  reference: string | null;
+  description?: string | null;
+  notes?: string | null;
+};
+
+export const PAYMENT_DESCRIPTIONS = ["First deposit", "Second deposit", "Third deposit", "Part payment", "Final payment", "Full payment", "Hosting renewal", "Maintenance fee"];
 
 export function PaymentDialog({
   open,
@@ -380,14 +421,16 @@ export function PaymentDialog({
     paidOn: payment?.paidOn ?? lagosToday(),
     method: payment?.method ?? "bank_transfer",
     reference: payment?.reference ?? "",
+    description: payment?.description ?? "",
+    notes: payment?.notes ?? "",
     kind: payment?.kind ?? ("PROJECT" as "PROJECT" | "MAINTENANCE"),
   });
 
   async function save(confirmDuplicate = false) {
-    const body = { projectId, kind: values.kind, amount: values.amount, paidOn: values.paidOn, method: values.method, reference: values.reference || null };
+    const body = { projectId, kind: values.kind, amount: values.amount, paidOn: values.paidOn, method: values.method, reference: values.reference || null, description: values.description || null, notes: values.notes || null };
     if (payment) {
-      await adminRequest(`/api/admin/business/payments/${payment.id}`, { method: "PATCH", body });
-      return "Payment updated. Balances recalculated.";
+      const result = await adminRequest<{ receiptVoided?: boolean }>(`/api/admin/business/payments/${payment.id}`, { method: "PATCH", body });
+      return result.receiptVoided ? "Payment updated. Its old receipt was voided: issue a fresh one from Receipts & Payments." : "Payment updated. Balances recalculated.";
     }
     const result = await adminRequest<{ alreadyRecorded?: boolean }>("/api/admin/business/payments", {
       method: "POST",
@@ -472,8 +515,21 @@ export function PaymentDialog({
               </select>
             </Field>
           </Grid>
-          <Field label="Reference or description (optional)" htmlFor={`${formId}-ref`}>
-            <input id={`${formId}-ref`} maxLength={300} value={values.reference} onChange={(e) => setValues((v) => ({ ...v, reference: e.target.value }))} className="field" placeholder="e.g. transfer ref, “2nd instalment”" />
+          <Grid>
+            <Field label="Payment description (optional)" htmlFor={`${formId}-desc`}>
+              <input id={`${formId}-desc`} list={`${formId}-descs`} maxLength={120} value={values.description} onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))} className="field" placeholder="e.g. First deposit" />
+              <datalist id={`${formId}-descs`}>
+                {PAYMENT_DESCRIPTIONS.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Transaction reference (optional)" htmlFor={`${formId}-ref`}>
+              <input id={`${formId}-ref`} maxLength={300} value={values.reference} onChange={(e) => setValues((v) => ({ ...v, reference: e.target.value }))} className="field" placeholder="e.g. bank transfer ref" />
+            </Field>
+          </Grid>
+          <Field label="Internal notes (optional)" htmlFor={`${formId}-notes`} hint="Only you see these. They never appear on a receipt.">
+            <textarea id={`${formId}-notes`} rows={2} maxLength={2000} value={values.notes} onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))} className="field" />
           </Field>
         </form>
       )}

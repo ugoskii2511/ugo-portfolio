@@ -26,7 +26,7 @@ const PROJECT_TONE: Record<ProjectStatus, Tone> = {
   ON_HOLD: "warning",
   CANCELLED: "danger",
 };
-const PAYMENT_TONE: Record<PaymentStatus, Tone> = { UNPAID: "danger", PARTIAL: "warning", PAID: "success" };
+const PAYMENT_TONE: Record<PaymentStatus, Tone> = { UNPAID: "danger", PARTIAL: "warning", PAID: "success", OVERPAID: "accent" };
 
 export function ProjectStatusPill({ status }: { status: ProjectStatus }) {
   return <StatusPill tone={PROJECT_TONE[status]}>{PROJECT_STATUS_LABEL[status]}</StatusPill>;

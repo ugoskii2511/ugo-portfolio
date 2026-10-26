@@ -27,7 +27,7 @@ export function POST(request: NextRequest) {
 
         if (!input.confirmDuplicate) {
           const twin = await tx.clientPayment.findFirst({
-            where: { projectId: project.id, kind: input.kind, amountKobo: BigInt(input.amount), paidOn: dayToDate(input.paidOn)!, deletedAt: null },
+            where: { projectId: project.id, kind: input.kind, amountKobo: BigInt(input.amount), paidOn: dayToDate(input.paidOn)!, deletedAt: null, status: "CONFIRMED" },
             select: { id: true },
           });
           if (twin) {
@@ -48,6 +48,8 @@ export function POST(request: NextRequest) {
             paidOn: dayToDate(input.paidOn)!,
             method: input.method,
             reference: input.reference,
+            description: input.description,
+            notes: input.notes,
             clientRequestId: input.clientRequestId ?? null,
           },
         });

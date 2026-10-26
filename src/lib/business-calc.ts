@@ -14,12 +14,13 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
-export const PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID"] as const;
+export const PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID", "OVERPAID"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   UNPAID: "Unpaid",
   PARTIAL: "Partially paid",
   PAID: "Fully paid",
+  OVERPAID: "Overpaid",
 };
 
 export const PAYMENT_METHODS = {
@@ -28,6 +29,7 @@ export const PAYMENT_METHODS = {
   card: "Card",
   pos: "POS",
   mobile_money: "Mobile money",
+  payment_gateway: "Payment gateway",
   other: "Other",
 } as const;
 export type PaymentMethod = keyof typeof PAYMENT_METHODS;
@@ -57,9 +59,23 @@ export function countsTowardTotals(status: ProjectStatus): boolean {
 /// Derived from the payment records, never typed in.
 export function paymentStatus(priceKobo: number | null, paidKobo: number): PaymentStatus {
   if (paidKobo <= 0) return "UNPAID";
+  if (priceKobo !== null && priceKobo > 0 && paidKobo > priceKobo) return "OVERPAID";
   if (priceKobo !== null && priceKobo > 0 && paidKobo >= priceKobo) return "PAID";
   if (priceKobo === 0) return "PAID";
   return "PARTIAL";
+}
+
+/// Agreed total = base price + additional charges − discount (never below 0).
+/// Null while no price has been agreed.
+export function agreedTotalKobo(base: number | null, charges: number | null = 0, discount: number | null = 0): number | null {
+  if (base === null) return null;
+  return Math.max(base + (charges ?? 0) - (discount ?? 0), 0);
+}
+
+/// Share of the agreed total that has been paid (0–100, capped).
+export function completionPercent(totalKobo: number | null, paidKobo: number): number {
+  if (!totalKobo || totalKobo <= 0) return paidKobo > 0 ? 100 : 0;
+  return Math.min(100, Math.floor((paidKobo / totalKobo) * 1000) / 10);
 }
 
 /// What's still owed. Never negative; overpayment is reported as credit.

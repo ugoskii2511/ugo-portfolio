@@ -16,6 +16,12 @@ import {
   FileChartColumn,
   Layers,
   Receipt,
+  ReceiptText,
+  FilePlus2,
+  Files,
+  History,
+  Settings2,
+  UserRound,
   Wallet,
   FileText,
   Gauge,
@@ -67,6 +73,17 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { href: "/admin/business/payments", label: "Payments", icon: Wallet },
       { href: "/admin/business/expenses", label: "Expenses", icon: Receipt },
       { href: "/admin/business/reports", label: "Reports", icon: FileChartColumn },
+    ],
+  },
+  {
+    heading: "Receipts & Payments",
+    items: [
+      { href: "/admin/receipts", label: "Receipts overview", icon: ReceiptText, exact: true },
+      { href: "/admin/receipts/new", label: "Generate receipt", icon: FilePlus2 },
+      { href: "/admin/receipts/all", label: "All receipts", icon: Files },
+      { href: "/admin/receipts/clients", label: "Client accounts", icon: UserRound },
+      { href: "/admin/receipts/payments", label: "Payment history", icon: History },
+      { href: "/admin/receipts/settings", label: "Receipt settings", icon: Settings2 },
     ],
   },
   {
@@ -406,7 +423,7 @@ export function AdminShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const counts = { leads: notifications.recentLeadCount, reviews: notifications.pendingReviewCount };
-  const current = ALL_ITEMS.find((item) => isActive(pathname, item));
+  const current = ALL_ITEMS.find((item) => isActive(pathname, item)) ?? (pathname.startsWith("/admin/receipts/") ? { label: "Receipt" } : undefined);
 
   // Close the drawer on navigation.
   const [lastPath, setLastPath] = useState(pathname);

@@ -2,6 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import {
+  agreedTotalKobo,
+  completionPercent,
   countsTowardTotals,
   dateFilter,
   dayString,
@@ -19,11 +21,16 @@ import { toKoboNumber } from "@/lib/money";
 /// total. "Live" means not deleted: a deleted client hides its projects and
 /// payments from every total until it's restored.
 
-export const livePaymentWhere: Prisma.ClientPaymentWhereInput = {
+/// Payment records that still exist (any status), for lists and history.
+export const livePaymentRecordWhere: Prisma.ClientPaymentWhereInput = {
   deletedAt: null,
   client: { deletedAt: null },
   OR: [{ projectId: null }, { project: { deletedAt: null } }],
 };
+
+/// Money actually received: live and CONFIRMED. Failed, cancelled, reversed
+/// and refunded payments stay on record but never count toward any total.
+export const livePaymentWhere: Prisma.ClientPaymentWhereInput = { ...livePaymentRecordWhere, status: "CONFIRMED" };
 
 /// Expenses are money that left the business, so they stay in totals even if
 /// the client/project they were linked to is later deleted.
@@ -37,7 +44,13 @@ export type ProjectRow = {
   serviceType: string | null;
   description: string | null;
   status: ProjectStatus;
+  /// Agreed total: base price + additional charges − discount.
   priceKobo: number | null;
+  basePriceKobo: number | null;
+  additionalChargesKobo: number | null;
+  discountKobo: number | null;
+  referenceNumber: string | null;
+  completionPercent: number;
   maintenanceFeeKobo: number | null;
   maintenanceInterval: string | null;
   nextPaymentDate: string | null;
@@ -63,7 +76,7 @@ export async function withFinancials(projects: ProjectWithClient[]): Promise<Pro
   const [paymentSums, expenseSums] = await Promise.all([
     prisma.clientPayment.groupBy({
       by: ["projectId", "kind"],
-      where: { deletedAt: null, projectId: { in: ids } },
+      where: { deletedAt: null, status: "CONFIRMED", projectId: { in: ids } },
       _sum: { amountKobo: true },
     }),
     prisma.expense.groupBy({
@@ -81,8 +94,11 @@ export async function withFinancials(projects: ProjectWithClient[]): Promise<Pro
   const expenses = new Map(expenseSums.map((r) => [r.projectId!, toKoboNumber(r._sum.amountKobo)]));
 
   return projects.map((p) => {
+    const basePriceKobo = p.priceKobo === null ? null : toKoboNumber(p.priceKobo);
+    const additionalChargesKobo = p.additionalChargesKobo === null ? null : toKoboNumber(p.additionalChargesKobo);
+    const discountKobo = p.discountKobo === null ? null : toKoboNumber(p.discountKobo);
     const figures = {
-      priceKobo: p.priceKobo === null ? null : toKoboNumber(p.priceKobo),
+      priceKobo: agreedTotalKobo(basePriceKobo, additionalChargesKobo, discountKobo),
       paidKobo: paid.get(p.id) ?? 0,
       maintenanceKobo: maintenance.get(p.id) ?? 0,
       directExpensesKobo: expenses.get(p.id) ?? 0,
@@ -95,6 +111,11 @@ export async function withFinancials(projects: ProjectWithClient[]): Promise<Pro
       description: p.description,
       status: figures.status,
       priceKobo: figures.priceKobo,
+      basePriceKobo,
+      additionalChargesKobo,
+      discountKobo,
+      referenceNumber: p.referenceNumber,
+      completionPercent: completionPercent(figures.priceKobo, figures.paidKobo),
       maintenanceFeeKobo: p.maintenanceFeeKobo === null ? null : toKoboNumber(p.maintenanceFeeKobo),
       maintenanceInterval: p.maintenanceInterval,
       nextPaymentDate: dayString(p.nextPaymentDate),
@@ -156,7 +177,7 @@ export function summariseClient(
   const status = STATUS_PRIORITY.find((st) => projects.some((p) => p.status === st)) ?? null;
   let paymentStatusValue: PaymentStatus | null = null;
   if (counted.length) {
-    if (outstanding === 0 && paidKobo > 0) paymentStatusValue = "PAID";
+    if (outstanding === 0 && paidKobo > 0) paymentStatusValue = projects.some((p) => p.paymentStatus === "OVERPAID") ? "OVERPAID" : "PAID";
     else if (paidKobo > 0) paymentStatusValue = "PARTIAL";
     else paymentStatusValue = valueKobo > 0 ? "UNPAID" : null;
   }
@@ -278,6 +299,9 @@ export type PaymentView = {
   paidOn: string;
   method: string;
   reference: string | null;
+  description: string | null;
+  notes: string | null;
+  status: "CONFIRMED" | "FAILED" | "CANCELLED" | "REVERSED" | "REFUNDED";
   kind: "PROJECT" | "MAINTENANCE";
   deleted: boolean;
   createdAt: string;
@@ -292,6 +316,9 @@ export function toPaymentView(p: Prisma.ClientPaymentGetPayload<{ include: { cli
     paidOn: dayString(p.paidOn)!,
     method: p.method,
     reference: p.reference,
+    description: p.description,
+    notes: p.notes,
+    status: p.status,
     kind: p.kind,
     deleted: p.deletedAt !== null,
     createdAt: p.createdAt.toISOString(),

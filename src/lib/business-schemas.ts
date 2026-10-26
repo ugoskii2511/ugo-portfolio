@@ -66,6 +66,9 @@ export const projectFields = z
     serviceType: optionalText(120),
     description: optionalText(5000),
     price: optionalAmount("Agreed price"),
+    additionalCharges: optionalAmount("Additional charges"),
+    discount: optionalAmount("Discount"),
+    referenceNumber: optionalText(60),
     status: z.enum(PROJECT_STATUSES),
     startDate: optionalDay("Start date"),
     expectedDeliveryDate: optionalDay("Expected delivery"),
@@ -80,6 +83,14 @@ export const projectFields = z
   .refine((p) => !p.startDate || !p.expectedDeliveryDate || p.expectedDeliveryDate >= p.startDate, {
     message: "Expected delivery can't be before the start date",
     path: ["expectedDeliveryDate"],
+  })
+  .refine((p) => p.price !== null || (p.additionalCharges === null && p.discount === null), {
+    message: "Enter the agreed price before adding charges or a discount",
+    path: ["price"],
+  })
+  .refine((p) => p.discount === null || p.price === null || p.discount <= p.price + (p.additionalCharges ?? 0), {
+    message: "The discount can't be more than the price plus charges",
+    path: ["discount"],
   });
 
 /// A new client, optionally with their first project.
@@ -94,6 +105,8 @@ export const paymentFields = z.object({
   paidOn: day("Payment date"),
   method: z.enum(methods),
   reference: optionalText(300),
+  description: optionalText(120),
+  notes: optionalText(2000),
 });
 
 export const createPaymentSchema = paymentFields.extend({
@@ -126,3 +139,56 @@ export const createExpenseSchema = z.union([
     clientRequestId: z.string().uuid().optional(),
   }),
 ]);
+
+// ---------------------------------------------------------------- receipts
+
+/// One "Generate receipt" submission: either a receipt for a payment that's
+/// already recorded, or a new payment (for an existing or new client and
+/// project) plus its receipt, saved together.
+export const createReceiptSchema = z
+  .object({
+    clientRequestId: z.string().uuid(),
+    preview: z.boolean().optional(),
+    confirmDuplicate: z.boolean().optional(),
+    issueDate: day("Issue date"),
+    paymentId: z.string().min(1).max(40).optional(),
+    clientId: z.string().min(1).max(40).optional(),
+    newClient: clientFields.optional(),
+    projectId: z.string().min(1).max(40).optional(),
+    newProject: projectFields.optional(),
+    payment: paymentFields.omit({ projectId: true }).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.paymentId) return;
+    if (!v.clientId === !v.newClient) ctx.addIssue({ code: "custom", message: "Choose a client or enter a new one", path: ["clientId"] });
+    if (!v.projectId === !v.newProject) ctx.addIssue({ code: "custom", message: "Choose a project or enter a new one", path: ["projectId"] });
+    if (!v.payment) ctx.addIssue({ code: "custom", message: "Enter the payment details", path: ["payment"] });
+    else if (v.issueDate < v.payment.paidOn) ctx.addIssue({ code: "custom", message: "The issue date can't be before the payment date", path: ["issueDate"] });
+  });
+
+export const voidReceiptSchema = z.object({
+  action: z.literal("void"),
+  reason: z.string().trim().min(3, "Give a short reason for voiding it").max(500),
+});
+export const reissueReceiptSchema = z.object({
+  action: z.literal("reissue"),
+  issueDate: day("Issue date").optional(),
+  reason: z.string().trim().max(500).optional(),
+});
+
+const shortText = (max: number) => optionalText(max);
+export const receiptSettingsSchema = z.object({
+  businessName: shortText(200),
+  logoUrl: shortText(500).refine((v) => v === null || /^\/[\w./-]+$/.test(v) || /^https:\/\/[^\s]+$/.test(v), "Use a site path like /logo.jpg or an https:// image link"),
+  email,
+  phone: shortText(60),
+  website: shortText(200),
+  address: shortText(500),
+  currency: z.string().trim().regex(/^[A-Z]{3}$/, "Use a 3-letter currency code like NGN").default("NGN"),
+  currencySymbol: z.string().trim().min(1).max(4).default("₦"),
+  numberPrefix: z.string().trim().regex(/^[A-Za-z0-9]{1,8}$/, "Use 1–8 letters or digits, e.g. RCT").transform((v) => v.toUpperCase()).default("RCT"),
+  authorizedName: shortText(120),
+  authorizedTitle: shortText(120),
+  acknowledgement: shortText(1000),
+  footerNote: shortText(300),
+});

@@ -3,13 +3,13 @@ import Link from "next/link";
 import { Download, Wallet } from "lucide-react";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { EmptyState, PageHeader, Panel, PanelHeader } from "@/components/admin/ui";
+import { EmptyState, PageHeader, Panel, PanelHeader, StatusPill } from "@/components/admin/ui";
 import { buttonClass } from "@/components/site/button";
 import { DeleteRestore, Money, RangeFilter } from "@/components/admin/business/bits";
 import { QuickActions } from "@/components/admin/business/quick-actions";
 import { EditPaymentButton } from "@/components/admin/business/row-actions";
 import { FilterField, FilterForm, hrefWith, paginate, Pagination } from "@/components/admin/business/list-controls";
-import { clientProjectOptions, livePaymentWhere, toPaymentView } from "@/lib/business";
+import { clientProjectOptions, livePaymentRecordWhere, toPaymentView } from "@/lib/business";
 import { dateFilter, PAYMENT_METHODS, resolveRange } from "@/lib/business-calc";
 import { formatKobo } from "@/lib/money";
 
@@ -34,7 +34,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   };
   const [rows, deletedRows, options] = await Promise.all([
     prisma.clientPayment.findMany({
-      where: { ...livePaymentWhere, ...scope },
+      where: { ...livePaymentRecordWhere, ...scope },
       orderBy: [{ paidOn: "desc" }, { createdAt: "desc" }],
       include: { client: { select: { id: true, name: true } }, project: { select: { id: true, title: true } } },
     }),
@@ -48,9 +48,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
     clientProjectOptions(),
   ]);
   const payments = rows.map(toPaymentView);
-  const total = payments.reduce((s, p) => s + p.amountKobo, 0);
+  // Only confirmed money counts; failed / refunded rows stay listed for the record.
+  const confirmed = payments.filter((p) => p.status === "CONFIRMED");
+  const total = confirmed.reduce((s, p) => s + p.amountKobo, 0);
   const byMethod = Object.entries(
-    payments.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.method]: (acc[p.method] ?? 0) + p.amountKobo }), {})
+    confirmed.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.method]: (acc[p.method] ?? 0) + p.amountKobo }), {})
   ).sort((a, b) => b[1] - a[1]);
   const shown = deleted ? [...payments, ...deletedRows.map(toPaymentView)] : payments;
   const { page, pages, slice } = paginate(shown, params.page, PAGE_SIZE);
@@ -80,7 +82,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           <p className="label-mono !text-[0.6rem]">Received · {range.label}</p>
           <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-emerald-300">{formatKobo(total)}</p>
           <p className="mt-1 text-xs text-muted">
-            {payments.length} payment{payments.length === 1 ? "" : "s"}
+            {confirmed.length} payment{confirmed.length === 1 ? "" : "s"}
             {params.client ? ` from ${options.find((o) => o.id === params.client)?.name ?? "this client"}` : ""}
           </p>
         </Panel>
@@ -173,12 +175,15 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                         {p.project?.title ?? "—"}
                         {p.kind === "MAINTENANCE" && <span className="block text-xs text-muted">hosting / maintenance</span>}
                       </td>
-                      <td className={`px-3 py-3 text-right font-medium ${p.deleted ? "line-through" : "text-emerald-300"}`}><Money kobo={p.amountKobo} /></td>
+                      <td className={`px-3 py-3 text-right font-medium ${p.deleted || p.status !== "CONFIRMED" ? "line-through text-muted" : "text-emerald-300"}`}>
+                        <Money kobo={p.amountKobo} />
+                        {p.status !== "CONFIRMED" && <span className="mt-1 block"><StatusPill tone="danger">{p.status.toLowerCase()}</StatusPill></span>}
+                      </td>
                       <td className="px-3 py-3">{PAYMENT_METHODS[p.method as keyof typeof PAYMENT_METHODS] ?? p.method}</td>
                       <td className="max-w-[14rem] truncate px-3 py-3 text-muted">{p.reference ?? ""}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
-                          {!p.deleted && <EditPaymentButton options={options} payment={{ id: p.id, projectId: p.project?.id ?? null, clientId: p.client.id, kind: p.kind, amountKobo: p.amountKobo, paidOn: p.paidOn, method: p.method, reference: p.reference }} />}
+                          {!p.deleted && <EditPaymentButton options={options} payment={{ id: p.id, projectId: p.project?.id ?? null, clientId: p.client.id, kind: p.kind, amountKobo: p.amountKobo, paidOn: p.paidOn, method: p.method, reference: p.reference, description: p.description, notes: p.notes }} />}
                           <DeleteRestore url={`/api/admin/business/payments/${p.id}`} deleted={p.deleted} noun="payment" detail={`Remove this ${formatKobo(p.amountKobo)} payment from ${p.client.name}? Their balance goes back up. It's kept in the audit log and can be restored.`} compact />
                         </div>
                       </td>

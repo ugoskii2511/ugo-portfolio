@@ -202,7 +202,10 @@ export function ClientProfile({
                       {p.project?.title ?? "—"}
                       {p.kind === "MAINTENANCE" && <span className="ml-2 text-xs text-muted no-underline">hosting/maintenance</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-medium text-emerald-300"><Money kobo={p.amountKobo} /></td>
+                    <td className={clsx("px-3 py-2.5 text-right font-medium", p.status === "CONFIRMED" ? "text-emerald-300" : "text-muted")}>
+                      <span className={p.status === "CONFIRMED" ? "" : "line-through"}><Money kobo={p.amountKobo} /></span>
+                      {p.status !== "CONFIRMED" && <span className="block text-xs font-normal capitalize text-red-300">{p.status.toLowerCase()}</span>}
+                    </td>
                     <td className="px-3 py-2.5">{PAYMENT_METHODS[p.method as keyof typeof PAYMENT_METHODS] ?? p.method}</td>
                     <td className="max-w-[14rem] truncate px-3 py-2.5 text-muted">{p.reference ?? ""}</td>
                     <td className="px-5 py-2.5">
@@ -210,7 +213,7 @@ export function ClientProfile({
                         {!p.deleted && !client.deleted && !p.projectDeleted && (
                           <button
                             type="button"
-                            onClick={() => open({ kind: "payment", payment: { id: p.id, projectId: p.project?.id ?? null, clientId: client.id, kind: p.kind, amountKobo: p.amountKobo, paidOn: p.paidOn, method: p.method, reference: p.reference } })}
+                            onClick={() => open({ kind: "payment", payment: { id: p.id, projectId: p.project?.id ?? null, clientId: client.id, kind: p.kind, amountKobo: p.amountKobo, paidOn: p.paidOn, method: p.method, reference: p.reference, description: p.description, notes: p.notes } })}
                             className={buttonClass("ghost", "sm", "!px-2.5")}
                           >
                             Edit
@@ -328,8 +331,17 @@ function ProjectCard({ p, readOnly, onEdit, onPay, onExpense }: { p: ProjectRow;
       )}
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-xs text-faint">Agreed price</dt>
-          <dd><Money kobo={p.priceKobo} /></dd>
+          <dt className="text-xs text-faint">Agreed total</dt>
+          <dd>
+            <Money kobo={p.priceKobo} />
+            {(p.additionalChargesKobo || p.discountKobo) ? (
+              <span className="block text-[0.7rem] text-faint">
+                {formatKobo(p.basePriceKobo)}
+                {p.additionalChargesKobo ? ` + ${formatKobo(p.additionalChargesKobo)}` : ""}
+                {p.discountKobo ? ` − ${formatKobo(p.discountKobo)}` : ""}
+              </span>
+            ) : null}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-faint">{p.creditKobo > 0 ? "Overpaid (credit)" : "Outstanding"}</dt>
