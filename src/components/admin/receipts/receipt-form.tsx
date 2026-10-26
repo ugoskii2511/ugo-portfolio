@@ -28,6 +28,18 @@ export type ExistingPayment = {
   description: string | null;
 };
 
+type Project = ReceiptFormClient["projects"][number];
+
+function isFullyPaid(p: Project | undefined | null): boolean {
+  return !!p && p.recorded.length > 0 && p.totalKobo !== null && p.totalKobo > 0 && (p.paymentStatus === "PAID" || p.paymentStatus === "OVERPAID");
+}
+
+/// The payment most likely wanted: the newest without a receipt, else the newest.
+function defaultRecorded(p: Project | undefined | null): string {
+  const list = p?.recorded ?? [];
+  return (list.find((r) => !r.receipt) ?? list[0])?.id ?? "";
+}
+
 type Business = { businessName: string; email: string | null; phone: string | null; website: string | null; address: string | null; currencySymbol: string };
 
 function Choice({ value, current, onChange, children, name }: { value: string; current: string; onChange: (v: string) => void; children: ReactNode; name: string }) {
@@ -71,6 +83,18 @@ export function ReceiptForm({
   const [newProject, setNewProject] = useState({ title: "", serviceType: "", description: "", price: "", additionalCharges: "", discount: "", referenceNumber: "" });
   const project = projectMode === "existing" ? (client?.projects.find((p) => p.id === projectId) ?? null) : null;
 
+  // A receipt for a payment that's already on record (e.g. a project that's
+  // been paid in full): no new amount, so nothing is counted twice.
+  const [paymentMode, setPaymentMode] = useState<"recorded" | "new">(isFullyPaid(firstProject) ? "recorded" : "new");
+  const [recordedId, setRecordedId] = useState(defaultRecorded(firstProject));
+  const recordedList = projectMode === "existing" ? (project?.recorded ?? []) : [];
+  const usingRecorded = !existingPayment && recordedList.length > 0 && paymentMode === "recorded";
+  const recordedPayment = usingRecorded ? (recordedList.find((r) => r.id === recordedId) ?? null) : null;
+  function syncProject(p: Project | undefined) {
+    setPaymentMode(isFullyPaid(p) ? "recorded" : "new");
+    setRecordedId(defaultRecorded(p));
+  }
+
   const [payment, setPayment] = useState({ amount: "", paidOn: today, method: "bank_transfer", reference: "", description: "", notes: "", kind: "PROJECT" as "PROJECT" | "MAINTENANCE" });
   const [issueDate, setIssueDate] = useState(today);
   const [busy, setBusy] = useState(false);
@@ -84,6 +108,7 @@ export function ReceiptForm({
     const p = c?.projects.find((x) => x.status !== "CANCELLED") ?? c?.projects[0];
     setProjectId(p?.id ?? "");
     setProjectMode(p ? "existing" : "new");
+    syncProject(p);
     setConfirmDuplicate(false);
   }
 
@@ -118,7 +143,7 @@ export function ReceiptForm({
   const money = (k: number | null) => (k === null ? "Not set" : formatMinor(k, business.currencySymbol));
 
   function body(isPreview: boolean, dup: boolean) {
-    if (existingPayment) return { clientRequestId: requestId, preview: isPreview, issueDate, paymentId: existingPayment.id };
+    if (existingPayment || usingRecorded) return { clientRequestId: requestId, preview: isPreview, issueDate, paymentId: existingPayment?.id ?? recordedId };
     return {
       clientRequestId: requestId,
       preview: isPreview,
@@ -153,6 +178,11 @@ export function ReceiptForm({
 
   function localProblem(): string {
     if (existingPayment) return issueDate < existingPayment.paidOn ? "The issue date can't be before the payment date." : "";
+    if (usingRecorded) {
+      if (!recordedPayment) return "Choose the payment to issue the receipt for.";
+      if (recordedPayment.receipt) return `That payment already has receipt ${recordedPayment.receipt.number}. Open it from the link above.`;
+      return issueDate < recordedPayment.paidOn ? "The issue date can't be before the payment date." : "";
+    }
     if (clientMode === "existing" && !clientId) return "Choose the client.";
     if (clientMode === "new" && !newClient.name.trim()) return "Enter the client's name.";
     if (projectMode === "existing" && !projectId) return "Choose the project.";
@@ -183,7 +213,7 @@ export function ReceiptForm({
         return;
       }
     } catch (err) {
-      if (err instanceof AdminRequestError && err.status === 409 && !dup && !existingPayment) {
+      if (err instanceof AdminRequestError && err.status === 409 && !dup && !existingPayment && !usingRecorded) {
         setBusy(false);
         const ok = await confirm({ title: "Possible duplicate", description: errorMessage(err), confirmLabel: "Yes, it's a separate payment" });
         if (ok) {
@@ -304,7 +334,7 @@ export function ReceiptForm({
                     <p className="text-sm text-muted">{client ? "This client has no projects yet. Choose “New project”." : "Choose a client first."}</p>
                   ) : (
                     <Field label="Project" htmlFor="rc-project">
-                      <select id="rc-project" value={projectId} onChange={(e) => { setProjectId(e.target.value); setConfirmDuplicate(false); }} className="field" required>
+                      <select id="rc-project" value={projectId} onChange={(e) => { setProjectId(e.target.value); setConfirmDuplicate(false); syncProject(client.projects.find((p) => p.id === e.target.value)); }} className="field" required>
                         {client.projects.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.title} · {money(p.totalKobo)} · {PAYMENT_STATUS_LABEL[p.paymentStatus]}
@@ -346,7 +376,48 @@ export function ReceiptForm({
             </Panel>
 
             <Panel>
-              <PanelHeader title="3. Payment" description="This payment only. Earlier deposits are already on record and are added up automatically." />
+              <PanelHeader
+                title="3. Payment"
+                description={usingRecorded ? "Issue the receipt for a payment you've already recorded. Nothing new is added to the balance." : "This payment only. Earlier deposits are already on record and are added up automatically."}
+              />
+              {recordedList.length > 0 && (
+                <div className="flex flex-col gap-4 border-b border-line px-5 py-4">
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Payment">
+                    <Choice name="payment-mode" value="recorded" current={paymentMode} onChange={(v) => setPaymentMode(v as "recorded")}>Payment already recorded</Choice>
+                    <Choice name="payment-mode" value="new" current={paymentMode} onChange={(v) => setPaymentMode(v as "new")}>New payment</Choice>
+                  </div>
+                  {usingRecorded && (
+                    <>
+                      {isFullyPaid(project) && (
+                        <p className="text-xs text-emerald-300">
+                          This project is fully paid. Choose the payment to issue a receipt for. The last payment&apos;s receipt lists every deposit and shows “Fully Paid”.
+                        </p>
+                      )}
+                      <Field label="Recorded payment" htmlFor="rc-recorded">
+                        <select id="rc-recorded" value={recordedId} onChange={(e) => setRecordedId(e.target.value)} className="field">
+                          {recordedList.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.paidOn} · {money(r.amountKobo)} · {r.description ?? r.methodLabel}
+                              {r.kind === "MAINTENANCE" ? " (hosting)" : ""}
+                              {r.receipt ? ` · has receipt ${r.receipt.number}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      {recordedPayment?.receipt && (
+                        <p className="text-sm text-amber-200">
+                          This payment already has a receipt:{" "}
+                          <Link href={`/admin/receipts/${recordedPayment.receipt.id}`} className="font-mono underline">
+                            {recordedPayment.receipt.number}
+                          </Link>
+                          . You can print or download it from there.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {!usingRecorded && (
               <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
                 <MoneyInput id="rc-amount" label="Amount received" required value={payment.amount} onChange={(amount) => setPayment((v) => ({ ...v, amount }))} />
                 <Field label="Date paid" htmlFor="rc-paidon">
@@ -382,6 +453,7 @@ export function ReceiptForm({
                   <textarea id="rc-notes" rows={2} maxLength={2000} value={payment.notes} onChange={(e) => setPayment((v) => ({ ...v, notes: e.target.value }))} className="field" />
                 </Field>
               </div>
+              )}
             </Panel>
           </>
         )}
@@ -390,7 +462,7 @@ export function ReceiptForm({
           <PanelHeader title={existingPayment ? "Receipt" : "4. Receipt"} />
           <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
             <Field label="Issue date" htmlFor="rc-issue">
-              <input id="rc-issue" type="date" required max={today} min={existingPayment?.paidOn ?? payment.paidOn} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="field" />
+              <input id="rc-issue" type="date" required max={today} min={existingPayment?.paidOn ?? recordedPayment?.paidOn ?? payment.paidOn} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="field" />
             </Field>
             <div className="text-xs text-muted sm:pt-6">The receipt number (e.g. RCT-{today.slice(0, 4)}-0001) is assigned automatically when you issue it, and never reused.</div>
           </div>
@@ -408,7 +480,19 @@ export function ReceiptForm({
       </div>
 
       <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
-        {!existingPayment && payment.kind === "PROJECT" && (
+        {usingRecorded && project && (
+          <Panel>
+            <PanelHeader title="Project account" />
+            <dl className="flex flex-col gap-2 px-5 py-4 text-sm">
+              <div className="flex justify-between gap-3"><dt className="text-muted">Total project cost</dt><dd className="tabular-nums">{money(project.totalKobo)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted">Total paid</dt><dd className="tabular-nums text-emerald-300">{money(project.paidKobo)}</dd></div>
+              <div className="flex justify-between gap-3 font-medium"><dt>Outstanding</dt><dd className="tabular-nums text-amber-300">{money(project.outstandingKobo)}</dd></div>
+              <div className="flex items-center justify-between gap-3 pt-1"><dt className="text-muted">Status</dt><dd><PaymentStatusPill status={project.paymentStatus} /></dd></div>
+            </dl>
+            <p className="border-t border-line px-5 py-3 text-xs text-muted">The receipt shows the totals as they stood after the chosen payment.</p>
+          </Panel>
+        )}
+        {!existingPayment && !usingRecorded && payment.kind === "PROJECT" && (
           <Panel>
             <PanelHeader title="After this payment" />
             <dl className="flex flex-col gap-2 px-5 py-4 text-sm">

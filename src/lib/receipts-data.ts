@@ -4,7 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { countsTowardTotals, dayString, type PaymentStatus } from "@/lib/business-calc";
 import { livePaymentRecordWhere, loadProjects, type ProjectRow } from "@/lib/business";
 import { snapshotOf } from "@/lib/receipts";
-import type { PaymentRecordStatus } from "@/lib/receipt-calc";
+import { methodLabel, type PaymentRecordStatus } from "@/lib/receipt-calc";
 import { toKoboNumber } from "@/lib/money";
 
 /// Read models for the Receipts & Payments pages.
@@ -164,15 +164,24 @@ export type ReceiptFormClient = {
     outstandingKobo: number;
     paymentStatus: PaymentStatus;
     payments: number;
+    /// Confirmed payments already on record, newest first.
+    recorded: { id: string; amountKobo: number; paidOn: string; description: string | null; methodLabel: string; kind: "PROJECT" | "MAINTENANCE"; receipt: { id: string; number: string } | null }[];
   }[];
 };
 
 export async function receiptFormClients(): Promise<ReceiptFormClient[]> {
-  const [clients, projects, counts] = await Promise.all([
+  const [clients, projects, counts, recorded] = await Promise.all([
     prisma.client.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, businessName: true, email: true, phone: true, whatsapp: true } }),
     loadProjects(),
     prisma.clientPayment.groupBy({ by: ["projectId"], where: { ...livePaymentRecordWhere, status: "CONFIRMED", kind: "PROJECT" }, _count: { _all: true } }),
+    loadPaymentRecords({ status: "CONFIRMED", projectId: { not: null } }),
   ]);
+  const byProject = new Map<string, ReceiptFormClient["projects"][number]["recorded"]>();
+  for (const p of recorded) {
+    const list = byProject.get(p.project!.id) ?? [];
+    list.push({ id: p.id, amountKobo: p.amountKobo, paidOn: p.paidOn, description: p.description, methodLabel: methodLabel(p.method), kind: p.kind, receipt: p.receipt });
+    byProject.set(p.project!.id, list);
+  }
   const paymentCount = new Map(counts.map((c) => [c.projectId, c._count._all]));
   return clients.map((c) => ({
     id: c.id,
@@ -192,6 +201,7 @@ export async function receiptFormClients(): Promise<ReceiptFormClient[]> {
         outstandingKobo: p.outstandingKobo,
         paymentStatus: p.paymentStatus,
         payments: paymentCount.get(p.id) ?? 0,
+        recorded: byProject.get(p.id) ?? [],
       })),
   }));
 }
