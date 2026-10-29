@@ -5,6 +5,7 @@ import { LinkButton } from "@/components/site/button";
 import { StackList } from "@/components/work/stack-list";
 import type { ShowcaseProject } from "@/lib/projects";
 import { SaleBadge } from "@/components/work/sale-badge";
+import { NoticeBadge } from "@/components/work/notice-badge";
 
 /// One large, editorial project panel. On desktop the panels are sticky, so
 /// as you scroll each one slides up over the last and takes focus.
@@ -64,6 +65,11 @@ export function ProjectFeature({
           {project.sale && (
             <p className="mt-4">
               <SaleBadge sale={project.sale} />
+            </p>
+          )}
+          {project.notice && (
+            <p className="mt-4">
+              <NoticeBadge notice={project.notice} />
             </p>
           )}
           <p className="mt-5 max-w-md text-pretty leading-relaxed text-muted">{project.lead}</p>

@@ -3,6 +3,7 @@ import { Phone } from "@/components/site/phone";
 import { Reveal } from "@/components/reveal";
 import type { ShowcaseProject } from "@/lib/projects";
 import { SaleBadge } from "@/components/work/sale-badge";
+import { NoticeBadge } from "@/components/work/notice-badge";
 
 /// Grid card for the /work index. The whole card is one link to the case
 /// study; the live site is one click further, on the case study itself.
@@ -34,6 +35,11 @@ export function WorkCard({ project, index }: { project: ShowcaseProject; index: 
             {project.sale && (
               <p className="mt-2">
                 <SaleBadge sale={project.sale} />
+              </p>
+            )}
+            {project.notice && (
+              <p className="mt-2">
+                <NoticeBadge notice={project.notice} />
               </p>
             )}
             <p className="mt-2 line-clamp-2 text-pretty text-sm leading-relaxed text-muted">{project.lead}</p>

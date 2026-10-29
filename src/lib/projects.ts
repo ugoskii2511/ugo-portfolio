@@ -48,6 +48,10 @@ export function formatPrice(sale: Sale) {
   return `₦${sale.price.toLocaleString("en-NG")}`;
 }
 
+/// A temporary or conditional listing (e.g. a proposal shown for a limited
+/// time). `label` is the short badge; `text` the full explanation.
+export type ProjectNotice = { label: string; text: string };
+
 type ProjectMeta = {
   matchName: string;
   name: string;
@@ -59,9 +63,41 @@ type ProjectMeta = {
   reviewMatch?: string;
   caseStudy?: CaseStudy;
   sale?: Sale;
+  notice?: ProjectNotice;
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
+  // Facts from the preview site (tastia-restaurant-brown.vercel.app): its
+  // review gate ("website for sale", timed review per visitor), rendered page
+  // copy, routes, forms and schema.org data, and its build (Astro on Vercel).
+  cmvtdmnm10000jkm57kagvbvi: {
+    matchName: "Tastia Restaurant and Bakery",
+    name: "Tastia Restaurant and Bakery",
+    slug: "tastia-restaurant",
+    category: "Restaurant, bakery & café",
+    lead: "A proposed redesign for a restaurant, bakery and café group with 13 branches across Abuja, Enugu and Ebonyi, built around its menu and WhatsApp ordering.",
+    notice: {
+      label: "Limited-time preview",
+      text: "This is a proposed redesign for Tastia Restaurant and Bakery, not their official website. The live preview can only be viewed within its timed review window, and it will be removed if Tastia proceeds with development of the site.",
+    },
+    caseStudy: {
+      role: "Designed and built (proposal)",
+      challenge:
+        "Tastia serves Nigerian, continental and Chinese dishes, pastries and drinks across 13 branches in three states. Customers need to find their nearest branch, see the full menu, and order, book a table or plan an event with that branch directly.",
+      solution:
+        "A ten-page restaurant site built around the menu and the branches. Customers build an order from the menu and send it to their chosen branch on WhatsApp, with the message already written for them. Table bookings go to the chosen branch too.",
+      features: [
+        "A full menu of 133 dishes and drinks in 10 categories, from native soups to smoothies",
+        "An order builder: pick dishes from the menu and the WhatsApp order message is written for you",
+        "13 branches across Abuja, Enugu and Ebonyi, each with click-to-call and a map link",
+        "Table reservations sent to the chosen branch",
+        "Catering and event enquiries, plus a contact form, each with a hidden spam-trap field",
+        "VIP lounge, gallery, blog and our-story pages",
+        "Structured data for every branch, so search engines can show addresses and opening hours",
+      ],
+      outcome: "Shown to Tastia as a proposal at tastia-restaurant-brown.vercel.app.",
+    },
+  },
   // Facts from the live site (rev-canon-arinze-bookstore.vercel.app):
   // rendered page copy, its routes and forms, the footer link to this
   // portfolio, and its build (Next.js + Tailwind, Vercel Blob media).
@@ -387,6 +423,7 @@ export type ShowcaseProject = {
   reviewMatch?: string;
   caseStudy: CaseStudy;
   sale?: Sale;
+  notice?: ProjectNotice;
 };
 
 type ProjectRow = {
@@ -460,6 +497,7 @@ export function toShowcase(project: ProjectRow): Omit<ShowcaseProject, "slug"> &
     reviewMatch: useMeta ? meta.reviewMatch : undefined,
     caseStudy: (useMeta && meta.caseStudy) || {},
     sale: useMeta ? meta.sale : undefined,
+    notice: useMeta ? meta.notice : undefined,
   };
 }
 

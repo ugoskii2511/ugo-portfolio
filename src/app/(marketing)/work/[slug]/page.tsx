@@ -13,6 +13,7 @@ import { Reveal } from "@/components/reveal";
 import { formatPrice, getShowcaseProjects, type ShowcaseProject } from "@/lib/projects";
 import { SalePanel } from "@/components/work/sale-panel";
 import { SaleFeatures } from "@/components/work/sale-features";
+import { NoticeCallout } from "@/components/work/notice-badge";
 import { DEFAULT_CONTACT_EMAIL, getSettings, getTestimonials } from "@/lib/content";
 import { SITE_URL } from "@/lib/site";
 
@@ -122,7 +123,7 @@ export default async function CaseStudyPage({ params }: Props) {
       : []),
     ["Type", project.category],
     ...(project.caseStudy.role ? ([["Role", project.caseStudy.role]] as [string, React.ReactNode][]) : []),
-    ["Status", <span key="s" className="inline-flex items-center gap-2"><span className="live-dot" aria-hidden />Live</span>],
+    ["Status", project.notice ? <span key="s" className="text-amber-300">Preview · limited time</span> : <span key="s" className="inline-flex items-center gap-2"><span className="live-dot" aria-hidden />Live</span>],
     ...(project.domain && project.liveUrl
       ? ([[
           "Website",
@@ -197,6 +198,11 @@ export default async function CaseStudyPage({ params }: Props) {
                 >
                   {project.lead}
                 </p>
+                {project.notice && (
+                  <div className="reveal-up mt-7 max-w-2xl" style={{ animationDelay: "200ms" }}>
+                    <NoticeCallout notice={project.notice} />
+                  </div>
+                )}
               </div>
               <dl
                 className="reveal-up grid grid-cols-2 gap-6 border-t border-line pt-6 lg:col-span-4 lg:grid-cols-1 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0"
