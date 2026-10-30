@@ -8,10 +8,12 @@ import { clsx } from "clsx";
 import { useBookingModal } from "@/components/booking-modal";
 import { BookButton } from "@/components/site/book-button";
 import { Wrap } from "@/components/site/wrap";
+import { PROMO } from "@/lib/promo";
 
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; label: string; highlight?: boolean }[] = [
   { href: "/work", label: "Work" },
   { href: "/services", label: "Services" },
+  ...(PROMO.active ? [{ href: PROMO.path, label: "Offer", highlight: true }] : []),
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
@@ -101,10 +103,11 @@ export function Navbar({ contactEmail }: { contactEmail: string }) {
                       href={link.href}
                       aria-current={active ? "page" : undefined}
                       className={clsx(
-                        "block rounded-full px-4 py-1.5 text-sm transition-colors",
-                        active ? "bg-white/[0.08] text-fg" : "text-muted hover:text-fg"
+                        "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm transition-colors",
+                        active ? "bg-white/[0.08] text-fg" : link.highlight ? "text-accent-bright hover:text-fg" : "text-muted hover:text-fg"
                       )}
                     >
+                      {link.highlight && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent-bright" />}
                       {link.label}
                     </Link>
                   </li>

@@ -6,6 +6,7 @@ import { ProcessTimeline } from "@/components/home/process";
 import { StackGrid } from "@/components/home/stack-grid";
 import { Testimonials } from "@/components/home/testimonials";
 import { FinalCta } from "@/components/home/final-cta";
+import { PromoSpotlight } from "@/components/home/promo-spotlight";
 import { ProjectFeature } from "@/components/work/project-feature";
 import { SectionIntro } from "@/components/site/section-intro";
 import { Wrap } from "@/components/site/wrap";
@@ -78,6 +79,8 @@ export default async function HomePage() {
           </div>
         </div>
       )}
+
+      <PromoSpotlight />
 
       <section aria-labelledby="capabilities-title" className="py-24 sm:py-32">
         <Wrap>
