@@ -8,6 +8,7 @@ import { buildWhatsAppChatUrl, formatWhatsAppDisplay } from "@/lib/whatsapp";
 const SITE_LINKS = [
   { href: "/work", label: "Work" },
   { href: "/services", label: "Services" },
+  { href: "/solutions", label: "Business solutions" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];

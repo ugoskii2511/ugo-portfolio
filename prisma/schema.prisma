@@ -105,6 +105,21 @@ model Booking {
   sourceProject        String?
   /// Visitor confirmed they understand prices shown are estimates.
   estimateAcknowledged Boolean @default(false)
+
+  // Business Solutions enquiries (source "solution-enquiry"). All optional /
+  // defaulted so earlier leads stay valid.
+  /// Offering key from src/lib/solutions.ts, e.g. "school-management".
+  service         String?
+  businessName    String?
+  /// Service-specific answers and the estimate shown at submission.
+  answers         Json?
+  /// NEW | CONTACTED | CONSULTATION | QUOTATION_SENT | NEGOTIATION | ACCEPTED | DECLINED | COMPLETED
+  status          String    @default("NEW")
+  /// Private notes, admin only.
+  adminNotes      String?
+  statusUpdatedAt DateTime?
+
+  @@index([service, status])
 }
 
 /// Singleton row (id = "singleton") holding global, admin-editable site settings

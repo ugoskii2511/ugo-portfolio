@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 import { getShowcaseProjects } from "@/lib/projects";
+import { SOLUTIONS } from "@/lib/solutions";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ const ROUTES = [
   { path: "/work", priority: 0.9 },
   { path: "/services", priority: 0.9 },
   { path: "/promo", priority: 0.8 },
+  { path: "/solutions", priority: 0.9 },
+  ...SOLUTIONS.map((s) => ({ path: `/solutions/${s.slug}`, priority: 0.8 })),
   { path: "/about", priority: 0.8 },
   { path: "/contact", priority: 0.8 },
   { path: "/audit", priority: 0.7 },

@@ -13,6 +13,7 @@ import { PROMO } from "@/lib/promo";
 const NAV_LINKS: { href: string; label: string; highlight?: boolean }[] = [
   { href: "/work", label: "Work" },
   { href: "/services", label: "Services" },
+  { href: "/solutions", label: "Solutions" },
   ...(PROMO.active ? [{ href: PROMO.path, label: "Offer", highlight: true }] : []),
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },

@@ -7,6 +7,7 @@ import { StackGrid } from "@/components/home/stack-grid";
 import { Testimonials } from "@/components/home/testimonials";
 import { FinalCta } from "@/components/home/final-cta";
 import { PromoSpotlight } from "@/components/home/promo-spotlight";
+import { SolutionsOverview } from "@/components/home/solutions-overview";
 import { ProjectFeature } from "@/components/work/project-feature";
 import { SectionIntro } from "@/components/site/section-intro";
 import { Wrap } from "@/components/site/wrap";
@@ -95,6 +96,8 @@ export default async function HomePage() {
           </div>
         </Wrap>
       </section>
+
+      <SolutionsOverview />
 
       {featured.length > 0 && (
         <section id="work" aria-labelledby="work-title" className="scroll-mt-20 pb-24 sm:pb-32">

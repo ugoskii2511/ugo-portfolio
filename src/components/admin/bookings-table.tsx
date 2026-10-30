@@ -1,12 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { ArrowLeft, ArrowUpRight, Check, Copy, Download, Inbox } from "lucide-react";
 import { buttonClass } from "@/components/site/button";
 import { EmptyState, SearchInput, StatusPill, formatDate, formatRelative } from "@/components/admin/ui";
 import { useToast } from "@/components/admin/toast-provider";
 import { useHasMounted } from "@/lib/use-has-mounted";
+import { adminRequest, errorMessage } from "@/lib/admin-fetch";
+import { SOLUTIONS, STATUS_LABELS } from "@/lib/solutions";
+
+const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "warning" | "danger"> = {
+  NEW: "accent",
+  CONTACTED: "neutral",
+  CONSULTATION: "warning",
+  QUOTATION_SENT: "warning",
+  NEGOTIATION: "warning",
+  ACCEPTED: "success",
+  DECLINED: "danger",
+  COMPLETED: "success",
+};
 
 export type AdminBooking = {
   id: string;
@@ -16,6 +30,16 @@ export type AdminBooking = {
   details: string;
   whatsappUrl: string;
   createdAt: string;
+  source?: string;
+  service?: string | null;
+  businessName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  timeline?: string | null;
+  requirements?: { label: string; value: string }[];
+  estimate?: string | null;
+  status?: string;
+  adminNotes?: string | null;
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -27,8 +51,20 @@ function toCsvValue(value: string) {
 }
 
 function downloadCsv(bookings: AdminBooking[]) {
-  const header = ["Client", "Budget", "Project Type", "Details", "Submitted"];
-  const rows = bookings.map((b) => [b.clientName, b.budget, b.projectType, b.details, new Date(b.createdAt).toISOString()]);
+  const header = ["Client", "Business", "Email", "Phone", "Service", "Status", "Budget", "Timeline", "Details", "Requirements", "Submitted"];
+  const rows = bookings.map((b) => [
+    b.clientName,
+    b.businessName ?? "",
+    b.email ?? "",
+    b.phone ?? "",
+    b.projectType,
+    b.status ?? "NEW",
+    b.budget,
+    b.timeline ?? "",
+    b.details,
+    (b.requirements ?? []).map((r) => `${r.label}: ${r.value}`).join("; "),
+    new Date(b.createdAt).toISOString(),
+  ]);
   const csv = [header, ...rows].map((row) => row.map(toCsvValue).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -51,7 +87,12 @@ function safeWhatsAppUrl(url: string) {
 /// "submitted in the last 7 days".
 export function BookingsTable({ bookings, initialSelectedId }: { bookings: AdminBooking[]; initialSelectedId?: string }) {
   const toast = useToast();
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [notesDraft, setNotesDraft] = useState<{ id: string; text: string } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(
     initialSelectedId && bookings.some((b) => b.id === initialSelectedId) ? initialSelectedId : bookings[0]?.id ?? null
   );
@@ -64,17 +105,40 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return bookings;
-    return bookings.filter(
+    const scoped = bookings.filter(
+      (b) =>
+        (!serviceFilter || (serviceFilter === "general" ? !b.service : b.service === serviceFilter)) &&
+        (!statusFilter || (b.status ?? "NEW") === statusFilter)
+    );
+    if (!q) return scoped;
+    return scoped.filter(
       (b) =>
         b.clientName.toLowerCase().includes(q) ||
         b.projectType.toLowerCase().includes(q) ||
         b.budget.toLowerCase().includes(q) ||
-        b.details.toLowerCase().includes(q)
+        b.details.toLowerCase().includes(q) ||
+        (b.businessName ?? "").toLowerCase().includes(q) ||
+        (b.email ?? "").toLowerCase().includes(q)
     );
-  }, [bookings, query]);
+  }, [bookings, query, serviceFilter, statusFilter]);
 
   const selected = bookings.find((b) => b.id === selectedId) ?? null;
+  const notes = notesDraft && selected && notesDraft.id === selected.id ? notesDraft.text : (selected?.adminNotes ?? "");
+
+  async function save(patch: { status?: string; adminNotes?: string | null }) {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await adminRequest(`/api/admin/leads/${selected.id}`, { method: "PATCH", body: patch });
+      toast.success(patch.status ? `Marked as ${STATUS_LABELS[patch.status]}.` : "Notes saved.");
+      if (patch.adminNotes !== undefined) setNotesDraft(null);
+      router.refresh();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function copyBrief(booking: AdminBooking) {
     const text = `${booking.clientName}\nProject: ${booking.projectType}\nBudget: ${booking.budget}\nSubmitted: ${formatDate(
@@ -111,6 +175,25 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
           label="Search leads"
           className="w-full sm:max-w-sm"
         />
+        <div className="flex flex-wrap gap-2">
+          <select aria-label="Filter by service" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="field !w-auto !py-2 text-sm">
+            <option value="">All services</option>
+            <option value="general">Booking form (general)</option>
+            {SOLUTIONS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="field !w-auto !py-2 text-sm">
+            <option value="">All statuses</option>
+            {Object.entries(STATUS_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex items-center gap-3">
           <p className="font-mono text-xs text-faint" aria-live="polite">
             {filtered.length} of {bookings.length}
@@ -152,7 +235,10 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                           {isNew && <span aria-label="New" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-bright" />}
                           <span className="truncate text-sm font-medium">{booking.clientName}</span>
                         </span>
-                        <span className="shrink-0 text-xs text-faint">{formatRelative(booking.createdAt, now)}</span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          {booking.status && booking.status !== "NEW" && <StatusPill tone={STATUS_TONE[booking.status] ?? "neutral"}>{STATUS_LABELS[booking.status] ?? booking.status}</StatusPill>}
+                          <span className="text-xs text-faint">{formatRelative(booking.createdAt, now)}</span>
+                        </span>
                       </span>
                       <span className="truncate text-xs text-fg/80">
                         {booking.projectType} <span className="text-faint">·</span> {booking.budget}
@@ -188,6 +274,7 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                 <h2 id="lead-title" className="mt-3 text-2xl font-semibold tracking-tight">
                   {selected.clientName}
                 </h2>
+                {selected.businessName && <p className="text-sm text-muted">{selected.businessName}</p>}
                 <dl className="mt-5 grid grid-cols-2 gap-4">
                   <div className="min-w-0">
                     <dt className="label-mono !text-[0.6rem]">Project</dt>
@@ -197,11 +284,83 @@ export function BookingsTable({ bookings, initialSelectedId }: { bookings: Admin
                     <dt className="label-mono !text-[0.6rem]">Budget</dt>
                     <dd className="mt-1 break-words text-sm">{selected.budget}</dd>
                   </div>
+                  {selected.timeline && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Timeline</dt>
+                      <dd className="mt-1 break-words text-sm">{selected.timeline}</dd>
+                    </div>
+                  )}
+                  {selected.estimate && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Estimate</dt>
+                      <dd className="mt-1 break-words text-sm">{selected.estimate}</dd>
+                    </div>
+                  )}
+                  {selected.email && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Email</dt>
+                      <dd className="mt-1 break-all text-sm">
+                        <a href={`mailto:${selected.email}`} className="hover:text-accent-bright">{selected.email}</a>
+                      </dd>
+                    </div>
+                  )}
+                  {selected.phone && (
+                    <div className="min-w-0">
+                      <dt className="label-mono !text-[0.6rem]">Phone / WhatsApp</dt>
+                      <dd className="mt-1 break-words text-sm">
+                        <a href={`tel:${selected.phone.replace(/\s/g, "")}`} className="hover:text-accent-bright">{selected.phone}</a>
+                      </dd>
+                    </div>
+                  )}
                 </dl>
+                <label className="mt-5 flex flex-col gap-1.5 text-xs text-muted sm:max-w-xs">
+                  Status
+                  <select
+                    value={selected.status ?? "NEW"}
+                    disabled={saving}
+                    onChange={(e) => save({ status: e.target.value })}
+                    className="field !py-2 text-sm"
+                  >
+                    {Object.entries(STATUS_LABELS).map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div className="flex-1 px-5 py-5 sm:px-6">
                 <h3 className="label-mono !text-[0.6rem]">Brief</h3>
                 <p className="mt-3 whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed text-fg/90">{selected.details}</p>
+                {selected.requirements && selected.requirements.length > 0 && (
+                  <>
+                    <h3 className="label-mono mt-6 !text-[0.6rem]">Requirements</h3>
+                    <dl className="mt-3 flex flex-col gap-2 text-sm">
+                      {selected.requirements.map((r) => (
+                        <div key={r.label}>
+                          <dt className="text-xs text-faint">{r.label}</dt>
+                          <dd className="whitespace-pre-wrap break-words">{r.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </>
+                )}
+                <label className="mt-6 flex flex-col gap-1.5">
+                  <span className="label-mono !text-[0.6rem]">Private notes</span>
+                  <textarea
+                    rows={3}
+                    maxLength={5000}
+                    value={notes}
+                    onChange={(e) => setNotesDraft({ id: selected.id, text: e.target.value })}
+                    placeholder="Calls, quotation amounts, next steps… (only you see these)"
+                    className="field text-sm"
+                  />
+                </label>
+                {notesDraft?.id === selected.id && notesDraft.text !== (selected.adminNotes ?? "") && (
+                  <button type="button" disabled={saving} onClick={() => save({ adminNotes: notes })} className={buttonClass("secondary", "sm", "mt-2")}>
+                    Save notes
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-2 border-t border-line px-5 py-4 sm:flex-row sm:px-6">
                 {safeWhatsAppUrl(selected.whatsappUrl) && (
