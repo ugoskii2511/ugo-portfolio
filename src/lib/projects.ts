@@ -67,6 +67,34 @@ type ProjectMeta = {
 };
 
 const PROJECT_META: Record<string, ProjectMeta> = {
+  // Facts from the live site (thenathanakan.vercel.app): rendered page copy,
+  // its sections and enquiry form, its /api/channel endpoint and generated
+  // data/channel.js, and its build (static HTML, CSS and JavaScript on Vercel).
+  cmwqbzgbu0000i4m5wmgij74d: {
+    matchName: "Nathan in 4K",
+    name: "Nathan in 4K",
+    slug: "nathan-in-4k",
+    category: "Content creator",
+    lead: "The official website for an Abuja lifestyle and vlog creator, built to turn his YouTube and TikTok audience into brand partnerships.",
+    caseStudy: {
+      role: "Designed and built",
+      challenge:
+        "Nathan Akan makes lifestyle vlogs on YouTube (Nathan in 4K) and TikTok (@thenathanakan). Brands looking to work with him needed one place to see his content, his reach and his audience, then get in touch with a proper brief.",
+      solution:
+        "A one-page site styled like a film shoot, with REC indicators, a camera spec line and sections numbered as scenes. It pulls his channel stats and latest uploads automatically, shows his past brand work and TikTok audience, and ends with an enquiry form for brands.",
+      features: [
+        "Subscriber, view and video counts kept current from his public YouTube channel",
+        "Featured episodes in a swipeable carousel, plus a gallery of uploads filtered by series",
+        "Latest uploads that play in an on-page video player",
+        "A TikTok feed that loads only when the visitor asks for it",
+        "Past brand collaborations shown as a logo grid",
+        "A TikTok media kit with audience breakdowns by gender, age, country and city",
+        "A brand enquiry form that opens the visitor's email app with the brief already written",
+        "Scroll animations that respect the visitor's reduced-motion setting",
+      ],
+      outcome: "Live at thenathanakan.vercel.app.",
+    },
+  },
   // Facts from the preview site (tastia-restaurant-brown.vercel.app): its
   // review gate ("website for sale", timed review per visitor), rendered page
   // copy, routes, forms and schema.org data, and its build (Astro on Vercel).
