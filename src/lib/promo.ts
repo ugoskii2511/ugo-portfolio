@@ -5,6 +5,8 @@
 
 export const PROMO = {
   active: true,
+  /// false hides the price everywhere: the text, and the flyer, which prints it.
+  showPrice: false,
   path: "/promo",
   eyebrow: "Limited time offer",
   title: "Get your business online",
@@ -17,7 +19,7 @@ export const PROMO = {
   tagline: "Your vision. Our code.",
   closing: "Because your business deserves a website.",
   whatsappMessage:
-    "Hello Ugochukwu, I saw your ₦150,000 website promo (free .name.ng domain & 1 year hosting). I'd like a free consultation.",
+    "Hello Ugochukwu, I saw your business website promo (free .name.ng domain & 1 year hosting). I'd like a free consultation.",
   image: {
     src: "/promo/business-website-promo.jpg",
     width: 1024,

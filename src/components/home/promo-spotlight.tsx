@@ -20,7 +20,7 @@ export function PromoSpotlight() {
               {PROMO.eyebrow}
             </p>
             <h2 id="promo-title" className="display mt-5 text-balance text-3xl sm:text-5xl">
-              A professional website for {promoPrice()}.
+              {PROMO.showPrice ? `A professional website for ${promoPrice()}.` : "A professional website for your business."}
             </h2>
             <p className="mt-4 max-w-xl text-pretty leading-relaxed text-muted">
               Custom design, mobile-friendly, WhatsApp and contact form, basic SEO and SSL, plus a free .name.ng domain and 1 year of hosting.
@@ -39,14 +39,16 @@ export function PromoSpotlight() {
               <LinkButton href={PROMO.path}>See the offer</LinkButton>
             </div>
           </div>
-          <Link
-            href={PROMO.path}
-            tabIndex={-1}
-            aria-hidden
-            className="mx-auto hidden w-48 rotate-[2deg] overflow-hidden rounded-2xl border border-line-strong shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9)] transition-transform duration-500 hover:rotate-0 sm:block lg:w-56"
-          >
-            <Image src={PROMO.image.src} alt="" width={PROMO.image.width} height={PROMO.image.height} sizes="224px" className="h-auto w-full" />
-          </Link>
+          {PROMO.showPrice && (
+            <Link
+              href={PROMO.path}
+              tabIndex={-1}
+              aria-hidden
+              className="mx-auto hidden w-48 rotate-[2deg] overflow-hidden rounded-2xl border border-line-strong shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9)] transition-transform duration-500 hover:rotate-0 sm:block lg:w-56"
+            >
+              <Image src={PROMO.image.src} alt="" width={PROMO.image.width} height={PROMO.image.height} sizes="224px" className="h-auto w-full" />
+            </Link>
+          )}
         </Reveal>
       </Wrap>
     </section>

@@ -26,16 +26,26 @@ import { DEFAULT_WHATSAPP_NUMBER, getSettings } from "@/lib/content";
 import { buildWhatsAppChatUrl } from "@/lib/whatsapp";
 import { PROMO, promoPrice } from "@/lib/promo";
 
-export const metadata: Metadata = {
-  title: `Business website promo: ${promoPrice()} with free domain & hosting`,
-  description: `${PROMO.intro} Promo price ${promoPrice()}, with a free .name.ng domain and 1 year of hosting. Only ${PROMO.slots} slots available.`,
-  alternates: { canonical: PROMO.path },
-  openGraph: {
-    title: `Get your business online for ${promoPrice()}`,
-    description: `Professional website + ${PROMO.bonus.toLowerCase()}. Only ${PROMO.slots} slots available.`,
-    images: [{ url: PROMO.image.src, width: PROMO.image.width, height: PROMO.image.height, alt: PROMO.image.alt }],
-  },
-};
+export const metadata: Metadata = PROMO.showPrice
+  ? {
+      title: `Business website promo: ${promoPrice()} with free domain & hosting`,
+      description: `${PROMO.intro} Promo price ${promoPrice()}, with a free .name.ng domain and 1 year of hosting. Only ${PROMO.slots} slots available.`,
+      alternates: { canonical: PROMO.path },
+      openGraph: {
+        title: `Get your business online for ${promoPrice()}`,
+        description: `Professional website + ${PROMO.bonus.toLowerCase()}. Only ${PROMO.slots} slots available.`,
+        images: [{ url: PROMO.image.src, width: PROMO.image.width, height: PROMO.image.height, alt: PROMO.image.alt }],
+      },
+    }
+  : {
+      title: "Business website promo with free domain & hosting",
+      description: `${PROMO.intro} Includes a free .name.ng domain and 1 year of hosting. Only ${PROMO.slots} slots available.`,
+      alternates: { canonical: PROMO.path },
+      openGraph: {
+        title: "Get your business online",
+        description: `Professional website + ${PROMO.bonus.toLowerCase()}. Only ${PROMO.slots} slots available.`,
+      },
+    };
 
 const ICONS: Record<string, LucideIcon> = {
   design: LayoutTemplate,
@@ -62,7 +72,7 @@ export default async function PromoPage() {
     <article>
       <header className="pb-16 pt-10 sm:pt-14">
         <Wrap className="grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-10">
-          <div className="lg:col-span-7">
+          <div className={PROMO.showPrice ? "lg:col-span-7" : "lg:col-span-12"}>
             <p className="reveal-up inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-accent-bright">
               <Zap className="h-3.5 w-3.5" aria-hidden />
               {PROMO.eyebrow}
@@ -79,8 +89,8 @@ export default async function PromoPage() {
 
             <div className="reveal-up mt-8 grid max-w-xl gap-4 sm:grid-cols-[1fr_auto]" style={{ animationDelay: "200ms" }}>
               <div className="edge rounded-2xl p-5">
-                <p className="label-mono">Promo price</p>
-                <p className="mt-2 text-5xl font-semibold tabular-nums tracking-tight">{promoPrice()}</p>
+                <p className="label-mono">{PROMO.showPrice ? "Promo price" : "Included free"}</p>
+                <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight sm:text-5xl">{PROMO.showPrice ? promoPrice() : "Domain + hosting"}</p>
                 <p className="mt-3 inline-flex items-center gap-2 text-sm text-accent-bright">
                   <Gift className="h-4 w-4" aria-hidden />
                   {PROMO.bonus}
@@ -105,6 +115,7 @@ export default async function PromoPage() {
             </div>
           </div>
 
+          {PROMO.showPrice && (
           <div className="reveal-up lg:col-span-5" style={{ animationDelay: "280ms" }}>
             <a
               href={PROMO.image.src}
@@ -127,6 +138,7 @@ export default async function PromoPage() {
               </span>
             </a>
           </div>
+          )}
         </Wrap>
       </header>
 
@@ -135,7 +147,7 @@ export default async function PromoPage() {
           <Reveal>
             <p className="label-mono">What you get</p>
             <h2 id="includes-title" className="display mt-4 text-balance text-4xl sm:text-5xl">
-              Everything in the {promoPrice()} package.
+              {PROMO.showPrice ? `Everything in the ${promoPrice()} package.` : "Everything in the package."}
             </h2>
           </Reveal>
           <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -198,7 +210,7 @@ export default async function PromoPage() {
               {PROMO.closing}
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted">
-              {promoPrice()} with {PROMO.bonus.toLowerCase()}. Only {PROMO.slots} slots, so message me to claim yours.
+              {PROMO.showPrice ? `${promoPrice()} with ${PROMO.bonus.toLowerCase()}.` : `A professional website with ${PROMO.bonus.toLowerCase()}.`} Only {PROMO.slots} slots, so message me to claim yours.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <LinkButton href={whatsappUrl} arrow="out" aria-label="Message me on WhatsApp for a free consultation (opens in a new tab)">
